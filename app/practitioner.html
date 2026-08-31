@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Practitioner Networks &middot; The Pocket Project</title>
+<meta name="description" content="An interactive map of the Pocket Project's practice groups, resilience circles and integration labs around the world." />
+
+<!-- Pocket Project Brand Guidelines 2025: Georgia for headings, Open Sans for
+     everything else. Georgia is websafe and needs no file. Open Sans is
+     vendored by vendor/vendor_open_sans.py, which is run once at build time.
+     Until it has been run this link 404s harmlessly and the browser falls back
+     to the system sans, so the map is never blocked on it.
+     The Atlas's own vendor/fonts.css (Inter, Source Serif 4, JetBrains Mono)
+     is deliberately not loaded: none of those three are in the brand. -->
+<link href="vendor/open-sans.css" rel="stylesheet">
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/topojson.min.js"></script>
+
+<style>
+
+  /* ─── THEME ────────────────────────────────────────────────
+     Bone only. The Atlas's forest and dusk themes and its theme switcher are
+     deliberately not here: a light map sits properly inside a light content
+     page, and this one is embedded in pocketproject.org. It also does not
+     follow prefers-color-scheme, on purpose. See docs/DECISIONS.md. */
+  /* Shared motion tokens. */
+  :root {
+    --m-fast:.18s; --m-base:.28s; --m-slow:.45s; --m-intro:.9s;
+    --ease-out:cubic-bezier(.22,.8,.25,1);     /* decel — entrances */
+    --ease-in-out:cubic-bezier(.65,0,.35,1);   /* symmetric — morphs */
+    --ease-soft:cubic-bezier(.4,0,.2,1);        /* gentle UI */
+  }
+  :root, [data-theme="bone"] {
+    --bg:#f1ebe1; --bg-2:#e8dfd0; --ink:#1a1612; --ink-dim:#555049; --ink-faint:#8a8278;
+    --rule:#cfc4b2; --accent:#b0522a; --accent-ink:#f1ebe1;
+    --country-absent:#d8cfbf; --country-stroke:#e7ddcc; --ocean:#eadfcd;
+    --globe-atmos-inner:rgba(176,82,42,0.055); --globe-atmos-outer:rgba(176,82,42,0);
+    --panel-bg:rgba(241,235,225,0.86); --panel-border:rgba(26,22,18,0.10);
+    --chip-bg:rgba(26,22,18,0.035); --arc-perp:#9a3818; --arc-victim:#b06a2a;
+    --shadow:rgba(40,30,18,0.16);
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; overflow:hidden; }
+  body {
+    font-family:'Open Sans',system-ui,sans-serif; background:var(--bg); color:var(--ink);
+    font-size:14px; line-height:1.55; letter-spacing:.005em;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    text-rendering:optimizeLegibility; font-feature-settings:'kern' 1, 'liga' 1;
+    transition:background var(--m-intro) var(--ease-soft), color var(--m-slow) ease;
+  }
+
+  /* ─── STAGE / GLOBE ────────────────────────────────────────── */
+  #stage { position:fixed; inset:0; }
+  #globe-wrap { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    /* touch-action MUST live on this HTML element, not the inner <svg>: iOS
+       WebKit ignores touch-action on SVG, so the one-finger drag was treated as
+       a page-pan and the globe never rotated on iPhone. On an HTML block element
+       iOS honours it → we own the gesture and pointermove drives the rotation.
+       (Kept on the svg too as belt-and-suspenders for non-iOS engines.) */
+    touch-action:none;
+    /* own stacking context: keeps the map's internal layers (ocean, countries,
+       arcs, the z-index:6 particle canvas) contained BELOW the UI chrome. Without
+       this, the map's internal z-index:6 canvas escapes to #stage level and
+       paints over the layer panel. */
+    isolation:isolate;
+    /* The Atlas starts this at opacity 0 and lets motion.js reveal it. That
+       module is not loaded here, so the reveal never came and the globe was
+       blank until a 2 second fallback animation fired. Visible from the
+       first frame instead. */
+    opacity:1; }
+  #globe-wrap svg { display:block; }
+  #globe-wrap .country { stroke:var(--country-stroke); stroke-width:.35; cursor:pointer;
+    transition:opacity var(--m-base) var(--ease-soft), stroke-width var(--m-fast) var(--ease-soft), fill var(--m-base) ease; }
+  #globe-wrap .country:hover { stroke:var(--accent); stroke-width:1.1; }
+  #globe-wrap .country[data-dimmed="true"] { opacity:.28; }
+  /* Countries inside a highlighted region: same tint as everything else, but a
+     heavier outline so the region reads as one area rather than a scatter of
+     separately shaded states. Kosha asked for this on 27 August. */
+  #globe-wrap .country.in-region { stroke:var(--accent); stroke-width:.9;
+    stroke-opacity:.55; }
+  #globe-wrap .ocean { fill:var(--ocean); stroke:var(--rule); stroke-width:.5; }
+  #globe-wrap .graticule { fill:none; stroke:color-mix(in srgb, var(--ink) 6%, transparent); stroke-width:.5; }
+  #globe-wrap .sphere-shade, #globe-wrap .atmos, #globe-wrap .overlay { pointer-events:none; }
+  #globe-wrap .arc { mix-blend-mode:multiply; }
+
+  /* ─── CHROME ───────────────────────────────────────────────── */
+  #chrome { position:fixed; inset:0; pointer-events:none; opacity:0; transition:opacity .9s ease .2s; }
+  #chrome.visible { opacity:1; }
+  #chrome > * { pointer-events:auto; }
+  #topbar { position:absolute; top:22px; left:28px; }
+  #topbar .brand-title { font-family:Georgia,'Times New Roman',serif; font-size:17px; color:var(--ink); line-height:1.2; }
+  #topbar .brand-sub { font-family:'Open Sans',system-ui,sans-serif; font-size:10px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--ink-faint); margin-top:4px; }
+  #statrail { position:absolute; top:24px; right:28px; display:flex; gap:28px; text-align:right; }
+  #statrail .v { font-family:Georgia,'Times New Roman',serif; font-size:22px; color:var(--ink); line-height:1; }
+  #statrail .l { font-family:'Open Sans',system-ui,sans-serif; font-size:9.5px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--ink-faint); margin-top:6px; }
+
+  /* layer panel */
+  #layers { position:absolute; left:28px; top:50%; transform:translateY(-50%); width:286px; max-height:74vh;
+    overflow-y:auto; background:var(--panel-bg); border:1px solid var(--panel-border);
+    backdrop-filter:blur(14px) saturate(1.1); border-radius:4px; padding:18px; }
+  #layers h3 { font-family:'Open Sans',system-ui,sans-serif; font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--ink-faint); margin-bottom:10px; }
+  #layers h3:not(:first-child) { margin-top:20px; }
+
+  /* tooltip */
+  #tooltip { position:fixed; z-index:80; display:none; pointer-events:none; background:var(--panel-bg);
+    border:1px solid var(--panel-border); backdrop-filter:blur(12px); border-radius:3px; padding:10px 13px;
+    min-width:150px; box-shadow:0 6px 22px rgba(0,0,0,.25); }
+  /* Brand fonts: Georgia for the name, Open Sans for the line beneath.
+     The Atlas originals asked for Source Serif 4 and JetBrains Mono, neither
+     of which this build ships. */
+  #tooltip { max-width:260px; }
+  #tooltip .tt-name { font-family:Georgia,'Times New Roman',serif; font-weight:400;
+    font-size:14px; line-height:1.35em; color:var(--ink); }
+  #tooltip .tt-hint { font-family:'Open Sans',system-ui,sans-serif; font-size:11.5px;
+    line-height:1.4em; color:var(--ink-faint); margin-top:4px; letter-spacing:0; }
+
+  /* globe controls */
+  #globe-controls { position:absolute; right:28px; bottom:24px; display:flex; align-items:center;
+    background:var(--panel-bg); border:1px solid var(--panel-border); backdrop-filter:blur(14px) saturate(1.1);
+    border-radius:999px; padding:4px; box-shadow:0 4px 18px var(--shadow); }
+  #globe-controls .gc-btn { appearance:none; background:transparent; border:none; height:30px; min-width:30px; border-radius:999px;
+    color:var(--ink-dim); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0 8px;
+    font-family:'Open Sans',system-ui,sans-serif; font-size:11px;
+    transition:background var(--m-fast) var(--ease-soft),color var(--m-fast) var(--ease-soft),transform var(--m-fast) var(--ease-out); }
+  #globe-controls .gc-btn:hover { background:var(--rule); color:var(--ink); }
+  #globe-controls .gc-btn:active { transform:scale(.92); }
+  #globe-controls .gc-btn.active { background:var(--accent); color:var(--accent-ink); }
+  #globe-controls .gc-divider { width:1px; height:16px; background:var(--rule); margin:0 4px; }
+
+  /* ─── THEME SWITCHER (injected by motion.js; styled here for palette) ── */
+    #bottom-hint { position:absolute; bottom:24px; left:50%; transform:translateX(-50%); font-family:'Open Sans',system-ui,sans-serif;
+    font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint); display:flex; gap:18px; align-items:center; }
+  #bottom-hint .k { padding:2px 7px; border:1px solid var(--rule); border-radius:2px; color:var(--ink-dim); }
+
+  /* chrome reveal: a gentle settle for the rails on load */
+  #chrome.visible #topbar, #chrome.visible #statrail { animation:settleIn .8s var(--ease-out) both; }
+  /* ─── REDUCED MOTION ───────────────────────────────────────── */
+  /* Disable non-essential animation; keep opacity cross-fades (essential
+     for legibility) but make them near-instant. */
+  @media (prefers-reduced-motion:reduce) {
+    *, *::before, *::after {
+      animation-duration:.001ms !important; animation-iteration-count:1 !important;
+      transition-duration:.001ms !important; scroll-behavior:auto !important;
+    }
+    #globe-wrap { transform:none !important; }
+  }
+
+  @media (max-width:900px) {
+    #layers, #statrail { display:none; }
+  }
+
+  /* ─── PHONE (≤640px) — mobile pass, build 06-27.m ──────────────
+     New rules only; nothing here touches the desktop/tablet cascade. The
+     #layers rail becomes a bottom sheet (sheet styling lives in layer-panel.js;
+     here we just re-show it and let the sheet transform take over). */
+  @media (max-width:640px) {
+    /* full-bleed globe under the notch (100dvh dodges the iOS address-bar jump) */
+    #stage, #globe-wrap { height:100dvh; }
+
+    /* #statrail stays hidden; #layers is re-shown as a sheet (it was display:none
+       via the 900px rule above — that rule is left untouched). */
+    #statrail { display:none; }
+    #layers { display:block; }
+
+    #bottom-hint { display:none; }
+
+    /* brand title trimmed so it fits a narrow bar; the dev build-stamp is hidden
+       on phones (it's a stale-tab aid for desktop) so the one-line title leaves
+       room for the left tool stack (Weighting · Search · Feedback · legend). */
+    #topbar { top:calc(env(safe-area-inset-top) + 12px); left:calc(env(safe-area-inset-left) + 14px); }
+    #topbar .brand-title { font-size:14px; }
+    #topbar .brand-sub { display:none; }
+
+    /* theme switcher → bottom-left (override the 900px top-right placement) */
+
+    /* globe controls → bottom-right. On phones we keep ONLY the 2D/3D toggle
+       (#gc-proj): pinch-zoom replaces the +/- buttons, and the play/pause
+       rotation control is dropped to keep the map as clean as possible. */
+    /* lift the 2D/3D button clear of the always-visible peek strip (~98px tall) */
+    #globe-controls { bottom:calc(env(safe-area-inset-bottom) + 110px);
+      right:calc(env(safe-area-inset-right) + 12px); }
+    #globe-controls .gc-btn { height:40px; min-width:40px; }
+    /* specificity must beat `#globe-controls .gc-btn` (1-1-0) above, else the
+       desktop display:inline-flex re-shows them — hence the #globe-controls prefix */
+    #globe-controls #gc-zin, #globe-controls #gc-zout, #globe-controls #gc-play { display:none; }
+    /* only the 2D/3D button remains → drop every divider */
+    #globe-controls .gc-divider { display:none; }
+
+  }
+
+  /* The Atlas hides #chrome until its intro flow reveals it. This map has no
+     intro, so the controls are simply visible from the start. Declared here
+     rather than left to JavaScript, so a script error can never leave the
+     page as a globe with no controls. */
+  #chrome { opacity:1; }
+  /* ── practitioner networks ─────────────────────────────────── */
+  /* Fill and stroke colours are set as inline styles by the layer, because a
+     marker's colour is per-network and its fill depends on whether the group
+     meets in that place. Inline style outranks these rules, which is why the
+     selected and focus states below need !important: they are state overrides
+     and must beat the base colour. Do not "tidy" those away. */
+  .pn-marker { cursor:pointer; pointer-events:auto; }
+  .pn-marker .pn-dot { stroke:var(--bg); stroke-width:1.5;
+    transition:transform var(--m-fast) var(--ease-soft);
+    transform-box:fill-box; transform-origin:center; }
+  .pn-marker:hover .pn-dot { transform:scale(1.3); }
+  .pn-marker:focus { outline:none; }
+  .pn-marker:focus-visible .pn-dot,
+  .pn-marker.is-selected .pn-dot { stroke:var(--ink) !important; stroke-width:2.5px !important; }
+  .pn-clusternode { cursor:pointer; pointer-events:auto; }
+  .pn-clusternode circle { stroke:var(--bg); stroke-width:2; }
+  .pn-clusternode:focus { outline:none; }
+  .pn-clusternode.is-selected circle,
+  .pn-clusternode:focus-visible circle { stroke:var(--ink) !important; stroke-width:2.5px !important; }
+
+  .pn-net-row { display:flex; align-items:center; gap:4px; }
+  .pn-net-row .pn-net { flex:1; min-width:0; }
+
+  /* ── network links ─────────────────────────────────────────
+     Each network row carries a link out to its own page on
+     pocketproject.org, which is where someone goes to actually join. */
+  .pn-net-go { flex:none; width:20px; height:20px; border-radius:2px; display:inline-flex;
+    align-items:center; justify-content:center; color:var(--ink-faint);
+    text-decoration:none; font-size:11px; line-height:1; opacity:0;
+    transition:opacity var(--m-fast) ease, color var(--m-fast) ease,
+               background var(--m-fast) ease; }
+  .pn-net:hover .pn-net-go, .pn-net-go:focus-visible { opacity:1; }
+  .pn-net-go:hover { color:var(--accent); background:var(--chip-bg); }
+
+  /* ── filters ───────────────────────────────────────────────── */
+  .pn-filter { margin-top:16px; padding-top:14px; border-top:1px solid var(--rule); }
+  .pn-filter-head { font-family:'Open Sans',system-ui,sans-serif; font-size:10px;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint);
+    margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .pn-filter-clear { background:none; border:0; cursor:pointer; font-size:10px;
+    letter-spacing:.06em; text-transform:uppercase; color:var(--ink-faint);
+    font-family:'Open Sans',system-ui,sans-serif; padding:0; }
+  .pn-filter-clear:hover { color:var(--accent); }
+  .pn-chips { display:flex; flex-wrap:wrap; gap:5px; }
+  .pn-chip { font-family:'Open Sans',system-ui,sans-serif; font-size:11px;
+    padding:3px 9px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--rule); background:transparent; color:var(--ink-dim);
+    transition:background var(--m-fast) ease, color var(--m-fast) ease,
+               border-color var(--m-fast) ease; }
+  .pn-chip:hover { border-color:var(--ink-faint); color:var(--ink); }
+  .pn-chip.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .pn-chip .n { opacity:.6; margin-left:5px; font-variant-numeric:tabular-nums; }
+
+  /* ── the button that opens the table of placeless groups ───── */
+  #pn-globals-wrap { margin-top:16px; padding-top:14px; border-top:1px solid var(--rule); }
+  #pn-globals-btn { width:100%; display:flex; align-items:baseline; gap:7px;
+    text-align:left; cursor:pointer; padding:9px 11px; border-radius:3px;
+    border:1px solid var(--rule); background:transparent; color:var(--ink-dim);
+    font-family:'Open Sans',system-ui,sans-serif; font-size:12px; line-height:1.4;
+    transition:border-color var(--m-fast) ease, color var(--m-fast) ease,
+               background var(--m-fast) ease; }
+  #pn-globals-btn:hover { border-color:var(--accent); color:var(--ink);
+    background:var(--chip-bg); }
+  #pn-globals-count { font-family:Georgia,'Times New Roman',serif; font-size:17px;
+    color:var(--ink); line-height:1; }
+
+  /* ── the overlay table ─────────────────────────────────────── */
+  #pn-sheet { position:fixed; inset:0; z-index:120; display:flex;
+    align-items:center; justify-content:center; padding:40px 24px;
+    background:color-mix(in srgb, var(--ink) 34%, transparent);
+    backdrop-filter:blur(3px); }
+  #pn-sheet[hidden] { display:none; }
+  #pn-sheet-panel { width:min(920px, 100%); max-height:100%; display:flex;
+    flex-direction:column; background:var(--bg); border:1px solid var(--panel-border);
+    border-radius:4px; box-shadow:0 30px 80px -30px var(--shadow); overflow:hidden; }
+  #pn-sheet-head { display:flex; align-items:flex-start; justify-content:space-between;
+    gap:16px; padding:22px 26px 16px; border-bottom:1px solid var(--rule); }
+  #pn-sheet-title { font-family:Georgia,'Times New Roman',serif; font-weight:400;
+    font-size:21px; line-height:1.25; color:var(--ink); }
+  #pn-sheet-sub { font-family:'Open Sans',system-ui,sans-serif; font-size:12px;
+    color:var(--ink-faint); margin-top:5px; line-height:1.5; max-width:60ch; }
+  #pn-sheet-x { background:none; border:0; font-size:24px; line-height:1;
+    color:var(--ink-faint); cursor:pointer; padding:0 2px; }
+  #pn-sheet-x:hover { color:var(--ink); }
+  #pn-sheet-body { overflow-y:auto; padding:6px 26px 26px; }
+
+  .pn-row { display:grid; grid-template-columns:1fr 220px; gap:22px;
+    padding:16px 0; border-bottom:1px solid var(--rule); align-items:start; }
+  .pn-row:last-child { border-bottom:0; }
+  .pn-row-net { font-family:'Open Sans',system-ui,sans-serif; font-size:9.5px;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint);
+    display:flex; align-items:center; gap:6px; margin-bottom:5px; }
+  .pn-row-t { font-family:Georgia,'Times New Roman',serif; font-size:15px;
+    line-height:1.35; color:var(--ink); }
+  .pn-row-alt { font-family:'Open Sans',system-ui,sans-serif; font-size:12px;
+    font-style:italic; color:var(--ink-faint); margin-top:2px; }
+  .pn-row-d { font-family:'Open Sans',system-ui,sans-serif; font-size:12.5px;
+    line-height:1.55; color:var(--ink-dim); margin-top:7px; }
+  .pn-row-go { display:inline-block; margin-top:9px; font-size:11.5px;
+    font-family:'Open Sans',system-ui,sans-serif; color:var(--accent);
+    text-decoration:none; border-bottom:1px solid transparent; }
+  .pn-row-go:hover { border-bottom-color:var(--accent); }
+  .pn-row-people { display:flex; flex-direction:column; gap:8px; }
+  .pn-row-p { display:flex; align-items:center; gap:8px; }
+  .pn-row-av { position:relative; width:30px; height:30px; flex:none; }
+  .pn-row-av img, .pn-row-av .pop-host-i { position:absolute; inset:0;
+    width:30px; height:30px; }
+  .pn-row-av img { opacity:0; border-radius:50%; object-fit:cover;
+    transition:opacity var(--m-base) var(--ease-soft); }
+  .pn-row-av img.is-in { opacity:1; }
+  .pn-row-n { font-family:'Open Sans',system-ui,sans-serif; font-size:12px;
+    line-height:1.35; color:var(--ink-dim); }
+  .pn-sheet-empty { font-family:'Open Sans',system-ui,sans-serif; font-size:13px;
+    color:var(--ink-faint); padding:26px 0; }
+
+  @media (max-width: 720px) {
+    #pn-sheet { padding:0; }
+    #pn-sheet-panel { border-radius:0; height:100%; }
+    .pn-row { grid-template-columns:1fr; gap:12px; }
+  }
+
+  /* return link on a card opened out of a cluster list */
+  .pop-back { display:inline-block; background:none; border:0; padding:0 0 8px;
+    font-family:'Open Sans',system-ui,sans-serif; font-size:11px;
+    letter-spacing:.06em; text-transform:uppercase; color:var(--ink-faint);
+    cursor:pointer; transition:color var(--m-fast) ease; }
+  .pop-back:hover { color:var(--accent); }
+
+  /* country panel: what a country click opens, split by how each group
+     relates to the place rather than lumped into one list. */
+  #pn-list-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .pn-clear { font-family:'Open Sans',system-ui,sans-serif; font-size:10.5px;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--ink-dim);
+    background:none; border:1px solid var(--rule); border-radius:2px;
+    padding:3px 7px; cursor:pointer; flex:none;
+    transition:color var(--m-fast) ease, border-color var(--m-fast) ease; }
+  .pn-clear:hover { color:var(--ink); border-color:var(--ink-dim); }
+  #pn-list { max-height:44vh; overflow-y:auto; }
+  .pn-relhead { display:flex; align-items:center; justify-content:space-between;
+    font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink-faint); margin:12px 0 4px; }
+  .pn-relhead:first-child { margin-top:6px; }
+  .pn-listitem { display:flex; align-items:flex-start; gap:8px; width:100%;
+    text-align:left; background:none; border:0; padding:5px 4px; cursor:pointer;
+    border-radius:2px; color:var(--ink); font-family:'Open Sans',system-ui,sans-serif;
+    font-size:12.5px; line-height:1.4em;
+    transition:background var(--m-fast) ease; }
+  .pn-listitem:hover { background:var(--chip-bg); }
+  .pn-listitem .pn-sw { margin-top:5px; }
+  .pn-listitem-t { flex:1; min-width:0; }
+  .pn-listitem-a { display:block; color:var(--ink-faint); font-size:11.5px;
+    line-height:1.4em; margin-top:1px; }
+  .pn-empty { font-size:12.5px; line-height:1.5em; color:var(--ink-faint); padding:6px 4px 2px; }
+
+  /* legend for the marker vocabulary; the solid/hollow distinction is load
+     bearing, since half the placed groups are online and only hosted from
+     the city they sit on. */
+  #pn-key { margin:14px 0 4px; padding:12px 0 2px; border-top:1px solid var(--rule); }
+  #pn-key .pn-key-row { display:flex; align-items:center; gap:9px; padding:3px 0;
+    font-family:'Open Sans',system-ui,sans-serif;
+    font-size:11.5px; color:var(--ink-dim); line-height:1.4em; }
+  #pn-key .pn-key-row svg { flex:none; }
+
+  .pn-count { font-size:12px; font-weight:600; fill:#fff; pointer-events:none;
+    font-family:'Open Sans',system-ui,sans-serif; }
+  #globe-wrap .overlay { pointer-events:none; }
+
+  /* filter list, reusing the Atlas layer-panel language */
+  .pn-net { display:flex; align-items:center; gap:9px; width:100%;
+    padding:8px 10px; border-radius:2px; cursor:pointer;
+    background:transparent; border:none; color:var(--ink-dim);
+    font-family:inherit; font-size:13px; text-align:left;
+    transition:background var(--m-base) var(--ease-soft), color var(--m-base) ease, opacity var(--m-base) ease; }
+  .pn-net:hover { background:var(--chip-bg); color:var(--ink); }
+  .pn-net:not(.on) { opacity:.4; }
+  .pn-net.on { color:var(--ink); }
+  .pn-sw { width:10px; height:10px; border-radius:50%; flex:none; }
+  .pn-n { margin-left:auto; font-size:11px; color:var(--ink-faint); }
+
+  /* drawer, mirroring the Atlas country drawer */
+  #pn-drawer { position:absolute; top:0; right:0; bottom:0; width:380px; max-width:88vw;
+    background:var(--panel-bg); border-left:1px solid var(--panel-border);
+    backdrop-filter:blur(14px); overflow-y:auto; padding:26px 26px 40px;
+    transform:translateX(100%); transition:transform var(--m-base) var(--ease-soft);
+    z-index:40; }
+  #pn-drawer.open { transform:translateX(0); }
+  #pn-close { position:absolute; top:16px; right:18px; background:none; border:none;
+    font-size:22px; line-height:1; color:var(--ink-faint); cursor:pointer; padding:4px 7px; }
+  #pn-close:hover { color:var(--ink); }
+  .pn-eyebrow { display:flex; align-items:center; gap:8px; font-size:11px;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--ink-dim); }
+  .pn-title { font-family:Georgia,'Times New Roman',serif; font-weight:400;
+    font-size:27px; line-height:1.22; margin:12px 0 6px; }
+  .pn-where { font-size:13px; color:var(--ink-dim); }
+  .pn-tags { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0 4px; }
+  .pn-tag { font-size:11px; padding:3px 9px; border-radius:2px;
+    background:var(--chip-bg); color:var(--ink-dim); }
+  .pn-sec { margin-top:20px; padding-top:16px; border-top:1px solid var(--rule); }
+  .pn-sec h4 { font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--ink-faint); margin-bottom:7px; font-weight:500; }
+  .pn-body { font-size:14px; line-height:1.62; color:var(--ink-dim); }
+  .pn-lead { display:flex; gap:12px; margin-bottom:16px; }
+  /* The initial sits under the photograph and shows through until it decodes,
+     so a slow or missing image never leaves a hole or a torn-image icon.
+     These files are full-size originals, often several hundred KB. */
+  .pn-lead-av { position:relative; width:46px; height:46px; flex:none; }
+  .pn-lead-av .pop-host-i { position:absolute; inset:0; width:46px; height:46px; font-size:17px; }
+  .pn-lead-av img { position:absolute; inset:0; width:46px; height:46px; }
+  .pn-lead img { width:46px; height:46px; border-radius:50%; object-fit:cover; flex:none;
+    background:var(--bg-2); }
+  .pn-lead-n { font-size:14px; color:var(--ink); margin-bottom:3px; }
+  .pn-lead-b { font-size:12.5px; line-height:1.55; color:var(--ink-dim); }
+  .pn-go { display:inline-block; margin-top:22px; font-size:13px; text-decoration:none;
+    color:var(--accent-ink); background:var(--accent); padding:11px 20px; border-radius:2px;
+    transition:opacity var(--m-base) ease; }
+  .pn-go:hover { opacity:.86; }
+  @media (max-width:640px){ #pn-drawer { width:100%; max-width:100%; } }
+
+  /* ── popup anchored to a marker ─────────────────────────────── */
+  /* 336 rather than 290: the card now names every facilitator, and most groups
+     have two or three. German group names are long enough to wrap three times
+     at the old width. */
+  #pn-pop { position:absolute; z-index:60; width:336px; max-width:calc(100vw - 24px);
+    background:var(--bg); border:1px solid var(--panel-border); border-radius:3px;
+    box-shadow:0 18px 42px -18px var(--shadow), 0 2px 8px -4px var(--shadow);
+    padding:15px 16px 16px; pointer-events:auto;
+    opacity:0; transform:translateY(4px) scale(.985); transform-origin:50% 100%;
+    transition:opacity var(--m-fast) var(--ease-soft), transform var(--m-fast) var(--ease-soft);
+    display:none; }
+  #pn-pop.show { display:block; opacity:1; transform:translateY(0) scale(1); }
+  /* little tail pointing back at the marker */
+  #pn-pop::after { content:''; position:absolute; left:var(--tail,50%); width:9px; height:9px;
+    background:var(--bg); border-right:1px solid var(--panel-border);
+    border-bottom:1px solid var(--panel-border); transform:translateX(-50%) rotate(45deg); }
+  #pn-pop.below::after { top:-5px; transform:translateX(-50%) rotate(225deg); }
+  #pn-pop.above::after { bottom:-5px; }
+  #pn-pop-x { position:absolute; top:7px; right:8px; background:none; border:none;
+    font-size:17px; line-height:1; color:var(--ink-faint); cursor:pointer; padding:3px 6px; }
+  #pn-pop-x:hover { color:var(--ink); }
+  .pop-eyebrow { display:flex; align-items:center; gap:7px; font-size:10px;
+    letter-spacing:.15em; text-transform:uppercase; color:var(--ink-dim); padding-right:20px; }
+  .pop-title { font-family:Georgia,'Times New Roman',serif; font-weight:400; font-size:18px;
+    line-height:1.28; margin:7px 0 3px; color:var(--ink); }
+  .pop-trans { font-size:12.5px; line-height:1.45; color:var(--ink-dim);
+    font-style:italic; margin:1px 0 4px; }
+  .pn-trans { font-size:13.5px; line-height:1.45; color:var(--ink-dim);
+    font-style:italic; margin:-2px 0 7px; }
+  .pop-where { font-size:12px; color:var(--ink-dim); }
+  .pop-when { font-size:12px; color:var(--ink); margin-top:9px; line-height:1.5; }
+  .pop-when b { font-weight:600; font-size:10px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--ink-faint); display:block; margin-bottom:2px; }
+  .pop-about { font-size:12.5px; line-height:1.55; color:var(--ink-dim); margin-top:9px; }
+  /* Every facilitator is listed, so this is a stack rather than a single row.
+     A leader with no photograph gets an initial in the same circle, which
+     keeps the names aligned instead of jumping left. */
+  .pop-host { margin-top:11px; padding-top:11px; border-top:1px solid var(--rule); }
+  .pop-host-r { font-family:'Open Sans',system-ui,sans-serif; font-size:10px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint);
+    margin-bottom:7px; }
+  .pop-host-p { display:flex; align-items:center; gap:9px; padding:2.5px 0; }
+  .pop-avatar { position:relative; width:28px; height:28px; flex:none; }
+  .pop-avatar img, .pop-avatar .pop-host-i { position:absolute; inset:0;
+    width:28px; height:28px; }
+  .pop-host-p img, .pop-host-i { border-radius:50%; flex:none; background:var(--chip-bg); }
+  .pop-host-p img { object-fit:cover; }
+  .pop-host-i { display:flex; align-items:center; justify-content:center;
+    font-family:'Open Sans',system-ui,sans-serif; font-size:11.5px;
+    color:var(--ink-faint); }
+  /* Photographs fade in once decoded. Until then the initial underneath is
+     what you see, so nothing pops or shifts. */
+  .pop-avatar img, .pn-lead-av img { opacity:0; border-radius:50%; object-fit:cover;
+    transition:opacity var(--m-base) var(--ease-soft); }
+  .pop-avatar img.is-in, .pn-lead-av img.is-in { opacity:1; }
+  .pop-host-n { font-size:12.5px; color:var(--ink); line-height:1.35; }
+  .pop-rows { margin-top:10px; max-height:46vh; overflow-y:auto;
+    margin-left:-6px; margin-right:-6px; }
+  .pop-row { display:flex; gap:8px; align-items:flex-start; width:100%; text-align:left;
+    background:none; border:none; cursor:pointer; padding:7px 8px; border-radius:2px;
+    font-family:inherit; font-size:12.5px; line-height:1.4; color:var(--ink);
+    transition:background var(--m-base) ease; }
+  .pop-row:hover { background:var(--chip-bg); }
+  .pop-row .pn-sw { margin-top:4px; }
+  .pop-row-t { flex:1; }
+  .pop-row-a { display:block; font-style:italic; color:var(--ink-faint); margin-top:1px; }
+  .pop-acts { display:flex; gap:8px; align-items:center; margin-top:13px; }
+  .pop-go { flex:1; text-align:center; font-size:12px; text-decoration:none;
+    color:var(--accent-ink); background:var(--accent); padding:9px 12px; border-radius:2px;
+    transition:opacity var(--m-base) ease; }
+  .pop-go:hover { opacity:.86; }
+  .pop-more { font-size:12px; background:none; border:1px solid var(--rule);
+    color:var(--ink-dim); padding:9px 12px; border-radius:2px; cursor:pointer;
+    transition:background var(--m-base) ease, color var(--m-base) ease; }
+  .pop-more:hover { background:var(--chip-bg); color:var(--ink); }
+
+  /* list shown when a cluster holds more groups than can sit honestly on the map */
+  #pn-list-wrap { margin-top:18px; }
+  .pn-listitem { display:block; width:100%; text-align:left; background:none; border:none;
+    padding:7px 10px; border-radius:2px; cursor:pointer; color:var(--ink-dim);
+    font-family:inherit; font-size:12.5px; line-height:1.4;
+    transition:background var(--m-base) ease, color var(--m-base) ease; }
+  .pn-listitem:hover { background:var(--chip-bg); color:var(--ink); }
+  .pn-listitem .d { display:inline-block; width:7px; height:7px; border-radius:50%;
+    margin-right:7px; vertical-align:middle; }
+  .pn-empty { font-size:11.5px; color:var(--ink-faint); padding:6px 10px; line-height:1.5; }
+</style>
+</head>
+<body data-theme="bone" data-build="2026-08-27b · scope and location">
+<div id="stage">
+  <div id="globe-wrap"></div>
+
+  <div id="chrome">
+    <header id="topbar">
+      <div class="brand-title">Practitioner Networks</div>
+      <div class="brand-sub">The Pocket Project &middot; practice groups, resilience circles, integration labs</div>
+    </header>
+
+    <div id="statrail">
+      <div class="s"><div class="v" id="pn-total">&mdash;</div><div class="l">Groups</div></div>
+      <div class="s"><div class="v" id="pn-placed">&mdash;</div><div class="l">On the map</div></div>
+      <div class="s"><div class="v" id="pn-countries">&mdash;</div><div class="l">Countries</div></div>
+      <div class="s"><div class="v" id="pn-global">&mdash;</div><div class="l">Global groups</div></div>
+    </div>
+
+    <aside id="layers">
+      <div class="lp-head">Networks</div>
+      <div id="pn-nets"></div>
+      <!-- The key sits directly under the filters, above every list. It was
+           last in the panel, which put it below 76 global groups inside a
+           scrolling box, so it was never once on screen. The solid and hollow
+           distinction is the map's core grammar and has to be readable before
+           anyone looks at the globe. -->
+      <div id="pn-key">
+        <div class="pn-key-row">
+          <svg width="15" height="15" viewBox="-8 -8 16 16" aria-hidden="true">
+            <circle r="5.5" fill="var(--ink-dim)"></circle>
+          </svg>
+          <span>Meets in this place</span>
+        </div>
+        <div class="pn-key-row">
+          <svg width="15" height="15" viewBox="-8 -8 16 16" aria-hidden="true">
+            <circle r="5" fill="var(--bg)" stroke="var(--ink-dim)" stroke-width="2.2"></circle>
+          </svg>
+          <span>Online, hosted from here</span>
+        </div>
+        <div class="pn-key-row">
+          <svg width="15" height="15" viewBox="-8 -8 16 16" aria-hidden="true">
+            <rect x="-4.6" y="-4.6" width="9.2" height="9.2" transform="rotate(45)"
+                  fill="var(--bg)" stroke="var(--ink-dim)" stroke-width="2"></rect>
+          </svg>
+          <span>This whole country, meets online</span>
+        </div>
+        <div class="pn-key-row">
+          <svg width="15" height="15" viewBox="-8 -8 16 16" aria-hidden="true">
+            <rect x="-6" y="-4" width="12" height="8" rx="1"
+                  fill="#FBD19F" stroke="var(--accent)" stroke-width="1.4"
+                  stroke-opacity=".55"></rect>
+          </svg>
+          <span>A whole region, shaded</span>
+        </div>
+        <div class="pn-key-row">
+          <svg width="15" height="15" viewBox="-8 -8 16 16" aria-hidden="true">
+            <circle r="4.2" fill="var(--bg)" stroke="var(--ink-dim)" stroke-width="1.8"></circle>
+            <circle r="7" fill="none" stroke="var(--ink-dim)" stroke-width=".9"
+                    stroke-opacity=".45"></circle>
+          </svg>
+          <span>Where a region group is run from, on zoom</span>
+        </div>
+      </div>
+
+      <div id="pn-filters"></div>
+
+      <div id="pn-list-wrap" hidden>
+        <div class="lp-head" id="pn-list-head">Groups here</div>
+        <div id="pn-list"></div>
+      </div>
+
+      <!-- 63 groups have no place at all. A scrolling list of 63 names inside
+           a 286px panel was unreadable and buried the legend, so it is one
+           button that opens a proper table over the map. -->
+      <div id="pn-globals-wrap" hidden>
+        <button id="pn-globals-btn" type="button">
+          <span id="pn-globals-count">0</span>
+          <span>groups not tied to one place</span>
+        </button>
+      </div>
+    </aside>
+
+    <div id="bottom-hint">
+      <span><span class="k">drag</span> rotate</span>
+      <span><span class="k">scroll</span> zoom</span>
+      <span><span class="k">click</span> a group</span>
+    </div>
+
+    <div id="globe-controls" aria-label="Globe controls">
+      <button class="gc-btn active" id="gc-proj" title="Toggle 2D and 3D">3D</button>
+      <div class="gc-divider"></div>
+      <button class="gc-btn" id="gc-play" title="Play or pause rotation">&#10074;&#10074;</button>
+      <div class="gc-divider"></div>
+      <button class="gc-btn" id="gc-zout" title="Zoom out">&minus;</button>
+      <button class="gc-btn" id="gc-zin" title="Zoom in">+</button>
+    </div>
+  </div>
+
+  <aside id="pn-drawer" aria-label="Group details">
+    <button id="pn-close" aria-label="Close">&times;</button>
+    <div id="pn-drawer-body"></div>
+  </aside>
+
+  <!-- Full table of the groups that have no place on the map. -->
+  <div id="pn-sheet" hidden role="dialog" aria-modal="true" aria-label="Groups not tied to one place">
+    <div id="pn-sheet-panel">
+      <header id="pn-sheet-head">
+        <div>
+          <h2 id="pn-sheet-title">Not tied to one place</h2>
+          <p id="pn-sheet-sub"></p>
+        </div>
+        <button id="pn-sheet-x" type="button" aria-label="Close">&times;</button>
+      </header>
+      <div id="pn-sheet-body"></div>
+    </div>
+  </div>
+
+  <div id="pn-pop" role="dialog" aria-label="Group">
+    <button id="pn-pop-x" aria-label="Close">&times;</button>
+    <div id="pn-pop-body"></div>
+  </div>
+
+  <div id="tooltip"></div>
+</div>
+
+<script type="module" src="js/practitioner-app.js"></script>
+</body>
+</html>

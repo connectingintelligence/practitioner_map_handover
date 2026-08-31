@@ -1,0 +1,22 @@
+# Nothing here is secret, but these have no business in a repository.
+
+# Facilitator home addresses. Held only in the build folder, never shipped,
+# never committed. If this file ever appears here, something has gone wrong.
+**/group_addresses.private.json
+
+# Contracts and invoices live in the working folder, not in the repo.
+01_contract/
+02_invoices/
+
+# Python and editor noise
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+
+# Vendored fonts are fetched by app/vendor/vendor_open_sans.py at build time.
+# Committing binaries makes the history heavy for no benefit, and the licence
+# is satisfied either way. Uncomment the negation if you would rather they be
+# in the repo so a clone works with no network at all.
+app/vendor/fonts/
+# !app/vendor/fonts/open-sans/OFL.txt

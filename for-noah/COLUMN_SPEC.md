@@ -1,0 +1,149 @@
+# Sheet Column Spec
+
+For the daily automation that syncs WordPress posts into the Google Sheet.
+
+Version 1.4 &middot; 27 August 2026 &middot; Connecting Intelligence for The Pocket Project
+
+The Sheet is **Pocket Project Practitioner Map Data**. The map reads from it. This document describes what the automation should write and how it should behave, so it can be built once and left alone.
+
+## The approach, as agreed
+
+Your design, and I think it is the right one:
+
+> While we could have the Gravity Forms inputs feed the sheet directly, it is also possible to add these groups manually without going through the form. Thus I think it safer if the posts for each group type are checked by an automation e.g. once a day, and feed the information into a sheet that way.
+
+Reading the posts rather than the form means a group added by hand in WordPress travels the same path as one that came through the form. One route into the data instead of two, and a correction made in WordPress reaches the map on the next run.
+
+Timing: the map ships with the Sheet already populated. I seed all currently published groups as part of delivery, so nothing is waiting on the automation. It takes over from there, whenever suits you.
+
+## The two tabs
+
+**`sync`** is a full mirror of the WordPress posts, rewritten completely on every run. Nobody edits it by hand. It exists so the team can always see what the website currently says, and so a problem can be diagnosed by comparing the two tabs.
+
+**`map_data`** is the tab the map reads. It holds the reviewed version, including the things WordPress does not know: how far a group reaches, where it is anchored, its coordinates where they had to be looked up, and whether it should be publicly visible.
+
+## How rows move from `sync` to `map_data`
+
+One rule:
+
+**Match on `id`. If the id is new, append the row to `map_data`. If the id already exists, leave that row untouched.**
+
+New groups therefore appear on the map by themselves, with no manual step, which is what Kosha asked for. Corrections the team has made are never overwritten by a later run, which is what makes the Sheet trustworthy to edit.
+
+Changes to existing groups are updated by hand, which matches what Kosha wrote on 28 July: "We understand that changes to existing groups would need to be updated manually." The `sync` tab makes those changes easy to spot, since it always shows the current website state beside the reviewed one.
+
+If you would rather the automation also refresh the WordPress-owned fields on existing rows, that works too, as long as it never touches `scope`, `location`, `visible`, `lat` or `lng`. Those five are the team's, and overwriting them would undo real work. Your call, both behaviours are fine for the map.
+
+## Columns for the `sync` tab
+
+In this order, with exactly these header names in row 1.
+
+| # | Column | Source in WordPress | Notes |
+|---|---|---|---|
+| 1 | `id` | see below | Stable, unique, never reused |
+| 2 | `network` | post type | `practice_groups`, `resilience_circles`, `integration_labs`, `witnessing_hubs` |
+| 3 | `name` | post title | |
+| 4 | `url` | permalink | Full URL |
+| 5 | `status` | post status | `publish`, `pending`, `draft`, `private`, passed through as-is |
+| 6 | `city` | `city` | Free text, may be empty |
+| 7 | `country` | `country` | The dropdown value, including `International` |
+| 8 | `lat` | the geo field's `_lat` | Empty if not set, see note below |
+| 9 | `lng` | the geo field's `_lng` | Empty if not set |
+| 10 | `scale` | `geographic-reach` | Passed through as-is, see the note on scale |
+| 11 | `format` | `format` | `online`, `in_person`, `hybrid` |
+| 12 | `language` | `language` | |
+| 13 | `applications` | `applications` | e.g. `Open for new members` |
+| 14 | `facilitator` | `group-leader-1` to `group-leader-5` | Non-empty ones joined with `; ` in one cell |
+| 15 | `description` | see below | One short line, plain text, no HTML |
+| 16 | `synced_at` | the automation | ISO timestamp of the run |
+
+**On `id`.** Network prefix plus the URL slug: `pg-` for Practice Groups, `rc-` for Resilience Circles, `il-` for Integration Labs, `wh-` for future Witnessing Hubs. So `https://pocketproject.org/pg/praxisgruppe-leipzig/` becomes `pg-praxisgruppe-leipzig`. This matches the ids already in `map_data`, which is what makes the match-on-id rule work from day one. The WordPress post ID would also be unique, but the slug version is readable for the team when they are correcting rows.
+
+**On vocabulary.** Exactly the values above, lowercase with underscores. `in_person` rather than `In Person`, `practice_groups` rather than `Practice Groups`. The map normalises spaces and hyphens, but the team reads this Sheet too, and one spelling throughout keeps it clean.
+
+**On `description`.** Use `focus-areas` for Practice Groups and Resilience Circles, and `subtitle` for Integration Labs. If neither exists, leave it empty rather than falling back to the post body. Plain text, HTML stripped, roughly 180 characters, since it appears in the map popup.
+
+**On empty cells.** Empty is fine everywhere except `id`, `network`, `name` and `url`. Empty is much better than a placeholder like `N/A`, which currently appears in some address values.
+
+**On addresses.** The export carries an `address` field, and it is very often a facilitator's home: apartment numbers, residential streets. **Please do not sync it.** I use it once, offline, to work out which city a group belongs to, and it goes no further. Anything that reaches the Sheet can reach the map, and the map is public.
+
+## What changed in 1.4
+
+Two columns replace `scale` and `field_country`. **Neither is synced, so this changes nothing you have to build**, but the tab you write into now has them and they should not be overwritten.
+
+`scale` and `field_country` still work and are still read. They are marked superseded in the workbook rather than removed, so nothing written before this change breaks.
+
+## Columns the `map_data` tab adds
+
+Three columns exist only on `map_data`. They hold judgments WordPress cannot make, they are the team's to edit, and the automation must never write to them.
+
+| # | Column | Filled by | Notes |
+|---|---|---|---|
+| 17 | `visible` | the team | Empty means shown. `FALSE` hides the row without deleting it |
+| 18 | `scope` | derived, or the team | `local`, `national`, `continental`, `global`. Usually empty and worked out from placement |
+| 19 | `location` | the team | An ISO2 code, or the name of an area. Several codes separated by spaces are allowed |
+| 20 | `field_country` | superseded | Kept and still read. Use `location` instead |
+
+**Five columns are the team's and the automation must never write to them: `scope`, `location`, `visible`, `lat`, `lng`.** They hold decisions, and a sync run overwriting one would undo real work.
+
+## On `scope` and `location`
+
+This is the only conceptual change since 1.3, and it came out of a real disagreement worth recording.
+
+Kosha asked for the Africa Practice Group to show across the whole continent, and the two Latin American Labs across Latin America. Reasonable: those groups genuinely have no single country. But if European and US groups resolve to cities while those two are one continental block, the map says something about Africa and Latin America that the network does not say. In this field that particular flattening is not a neutral accident.
+
+The resolution is two columns instead of one, because reach and anchor are different questions:
+
+**`scope`** is how far a group reaches. `local`, `national`, `continental`, `global`. Leave it empty and it is derived from where the row lands, the same way `scale` always was. Write it only when the reach is a decision placement cannot infer, which in practice means `continental`.
+
+**`location`** is where the group is actually rooted. A two-letter country code, or the name of an area from the list below. Several codes separated by spaces for a group rooted in more than one country.
+
+The map then shows **reach when zoomed out and precision when zoomed in**. Africa shades at a distance; zoom in and a small ringed marker appears on Berlin, with the card reading "Across Africa, run from Berlin". Both statements are true.
+
+**Areas currently defined:** `africa`, `europe`, `asia`, `north_america`, `south_america`, `oceania`, `antarctica`, `latin_america`, `southern_africa`, `balkans`.
+
+All seven continents exist deliberately, not just the two in use. If only Africa and Latin America were available, a pan-European group would have no way to be described the same way, and the asymmetry would be a property of our data file rather than of the network.
+
+Membership follows the UN M49 geoscheme. Adding an area is one entry in `data/practitioner_regions.json`.
+
+**On `field_country`.** This is the one new thing I am asking for, and it exists because of the Labs.
+
+A Practice Group has a place: people gather there. A Lab has a subject, and the subject often has a place. "Collective & Intergenerational Trauma in Lebanon" meets on a video call across several timezones, so it has no meeting place, but it is unmistakably about Lebanon. `field_country` is where that goes: `LB`.
+
+It is deliberately separate from `country`. `country` means the group meets there, and the map draws a marker you could travel to. `field_country` means the group enquires into that place, and the map draws a soft halo instead, the same treatment regional groups already get. The two say different things and are never mixed.
+
+Empty means the group has no single geographic subject, and it stays in the panel beside the map exactly as now. That includes the six Labs whose titles already end in "Global", which read as a deliberate signal that the rest are not.
+
+One code per row. A Lab spanning two countries, "Deutschland, Russland: Kollektive Wunden" for instance, either picks the one it is most anchored in or stays empty. Splitting a marker across two places is not something this map can do honestly, and a list entry is better than a misleading dot.
+
+## Notes on specific fields
+
+**Coordinates.** In the export the geo fields carry a hashed key prefix, for example `884d9804999fc47a3c2694e49ad2536a_lat`. Please output them as plain `lat` and `lng`. 22 published Practice Groups already have them, which is genuinely useful. Everything else I place from city and country, so nothing is blocked by this.
+
+**Status and visibility.** The map shows a group when the team has not hidden it. Pending, draft and private rows still come through the sync so they are visible in the Sheet, but they are not drawn on the map. This matches the note on the site that only fully approved groups appear.
+
+## The scale field
+
+The map draws four kinds of group differently: `local` gets a pin in its city, `national` a marker at the centre of the country, `regional` a soft halo across an area, and `global` an entry in the panel beside the map.
+
+`geographic-reach` is the natural source for this, but as it stands it is free text and unreliable in both directions. It is filled on 19 of 56 published Practice Groups, with values ranging from `Global` to `Stadt` to `Rhein-Main-Gebiet`, it is empty on every Resilience Circle, and in at least one case it reads `Global` for what is plainly a city group.
+
+So for now I derive the scale from the location data and the team confirms it in `map_data`.
+
+**My suggestion, if you have the appetite:** turn `geographic-reach` into a dropdown with exactly `local`, `national`, `regional`, `global`. The existing values map easily, `City`, `Stadt` and `Bern` become `local`, `Rhein-Main-Gebiet` becomes `regional`, `Country` becomes `national`, `Global` stays `global`. New groups then arrive correctly classified and nobody maintains it by hand afterwards. If it is more than it is worth right now, leaving the field alone costs nothing, the derivation handles it.
+
+## Integration Labs
+
+The Labs carry no location fields at all, and as you say nearly all of them meet online. There is nothing for the pipeline to find: no city, no country, no coordinates on any of the 75.
+
+That matters more than it first sounds, because **the Labs are 75 of the 147 groups**. More than half the data has no presence on the globe. They appear in a dedicated panel beside the map, visible, clickable and listed by name, rather than pinned somewhere they do not sit. That is honest, and it is where we start.
+
+`field_country` is the way out, and it needs nothing from the automation. It is a `map_data` column the team fills in when a Lab is clearly about a place, and the map then draws a soft halo over that country rather than a marker. Empty leaves the Lab in the panel, so filling it in is optional and can happen a few rows at a time.
+
+To make it concrete rather than a blank column, I have gone through all 75 titles and proposed a code for the 27 that name a place or a people. That list is `docs/LAB_PLACEMENT_PROPOSAL.md`. It is a starting point to correct, not a decision I have taken. Several are genuinely arguable and I have flagged which.
+
+Worth knowing either way: the Labs are the **best** documented network, not the worst. Focus, invitation, methodology, meeting schedule, leaders and photographs are populated on all 75. It is only place they lack.
+
+## The fourth network
+
+Witnessing Hubs. They came up in Kosha's original brief as still to be created, so there is nothing to export. The map already carries the network value, so hubs appear on their own once posts exist, with no changes needed from either of us.

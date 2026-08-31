@@ -1,0 +1,85 @@
+{
+  "_note": "English and German renderings of group names published only in Ukrainian. Shown beneath the original, never instead of it: the Ukrainian title is the group's own name and stays primary. Keyed by group id. Add a language by adding a key.",
+
+  "_places_note": "Place names are different from group names: a city is a label, not something anyone chose, and leaving one in Cyrillic beside an English country name reads as an oversight rather than as respect. These replace the value outright. Keyed by the exact string in the city column.",
+  "_places": {
+    "Житомир": { "en": "Zhytomyr", "de": "Schytomyr" }
+  },
+
+  "pg-українська-група-практики": {
+    "en": "Ukrainian Practice Group",
+    "de": "Ukrainische Praxisgruppe"
+  },
+  "rc-як-турбуватися-про-себе-у-часи-невизна": {
+    "en": "Caring for yourself in uncertain times",
+    "de": "Für sich sorgen in unsicheren Zeiten"
+  },
+  "rc-специфіка-роботи-з-молоддю-із-сільськ": {
+    "en": "Working with young people from rural areas: stereotypes, emotional support and mentoring",
+    "de": "Arbeit mit Jugendlichen aus ländlichen Regionen: Stereotype, emotionale Unterstützung und Mentoring"
+  },
+  "rc-коло-стійкості-рс-разом-сильніші": {
+    "en": "Resilience Circle: together we are stronger",
+    "de": "Resilienzkreis: gemeinsam sind wir stärker"
+  },
+  "rc-майндфулнес-мистецтво-бути-в-моменті": {
+    "en": "Mindfulness: the art of being in the moment",
+    "de": "Achtsamkeit: die Kunst, im Moment zu sein"
+  },
+  "rc-арттерапевтичний-марафон-час-діяти": {
+    "en": "Art therapy marathon: Time to Act",
+    "de": "Kunsttherapie-Marathon: Zeit zu handeln"
+  },
+  "rc-безбарєрна-комунікація-з-молоддю-як-з": {
+    "en": "Barrier-free communication with young people: how to reach and hear one another",
+    "de": "Barrierefreie Kommunikation mit Jugendlichen: einander erreichen und hören"
+  },
+  "rc-я-відчуваю-подорож-до-себе-через-почут": {
+    "en": "I feel: a journey to yourself through feelings and emotions",
+    "de": "Ich fühle: eine Reise zu sich selbst durch Gefühle und Emotionen"
+  },
+  "rc-літній-табір-під-пледом": {
+    "en": "Summer camp: Under the Blanket",
+    "de": "Sommercamp: Unter der Decke"
+  },
+  "rc-коло-стійкості-для-творчих-жінок-шлях": {
+    "en": "Resilience Circle for creative women: the path to yourself",
+    "de": "Resilienzkreis für kreative Frauen: der Weg zu sich selbst"
+  },
+  "rc-коло-стійкості-з-елементами-музикоте": {
+    "en": "Resilience Circle with music therapy and meditation",
+    "de": "Resilienzkreis mit Musiktherapie und Meditation"
+  },
+  "rc-коло-стійкості-для-молоді-житомирщин": {
+    "en": "Resilience Circle for young people of the Zhytomyr region",
+    "de": "Resilienzkreis für Jugendliche der Region Schytomyr"
+  },
+  "rc-сила-для-молоді-житомирщини": {
+    "en": "CircleStrength for young people of the Zhytomyr region",
+    "de": "KreisKraft für Jugendliche der Region Schytomyr"
+  },
+  "rc-як-в-світі-ші-не-втратити-звязок-із-реа": {
+    "en": "Keeping touch with real feeling in a world of artificial intelligence",
+    "de": "In einer Welt der künstlichen Intelligenz den Kontakt zum echten Empfinden halten"
+  },
+  "rc-кола-стійкості-рівновага-спільноти-3": {
+    "en": "Resilience Circles: the balance of community",
+    "de": "Resilienzkreise: das Gleichgewicht der Gemeinschaft"
+  },
+  "rc-повернення-до-себе": {
+    "en": "Returning to yourself",
+    "de": "Rückkehr zu sich selbst"
+  },
+  "rc-точки-опори": {
+    "en": "Points of support",
+    "de": "Haltepunkte"
+  },
+  "rc-точки-опори-2": {
+    "en": "Points of support",
+    "de": "Haltepunkte"
+  },
+  "rc-арт-терапія-і-внутрішня-опора-коло-сті-2": {
+    "en": "Art therapy: inner support as a resource for recovery",
+    "de": "Kunsttherapie: innere Stützen als Ressource für Erholung"
+  }
+}
