@@ -25,7 +25,7 @@ const $ = (s) => document.querySelector(s);
 // on 27 August were spent on a browser quietly running an old copy of this file
 // against new markup. If the stamp on screen is not the one below, the page is
 // stale and nothing else you are looking at can be trusted.
-const BUILD = '2026-08-31b · region labels';
+const BUILD = '2026-08-31d · live Sheet read repaired';
 
 // ── read the embed parameters ──
 // ?layer= opens showing one network, ?country= narrows and zooms to one
@@ -94,12 +94,38 @@ let current = null;          // group whose popup is open
 
 let placeless = [];      // the groups the overlay lists, kept for the button
 
+// Can this group actually be drawn somewhere? The layer places a marker from
+// lat/lng, else the country's centroid, else the country a Lab is about, else
+// the region it covers. If none of those exist there is nowhere to put it.
+//
+// A city name on its own is NOT enough. Nothing at runtime turns "Shanghai"
+// into coordinates: the gazetteer that does that lives in the offline pipeline
+// and never ships. So a row typed straight into the Sheet with a city and
+// nothing else has no position.
+const canPlace = (g) => !!(g.field_region || g.field_iso3 || g.iso3
+  || (g.lat != null && g.lat !== '' && g.lng != null && g.lng !== ''));
+
 function setStats(scoped) {
   // A group counts as on the map if it has a marker or tints a region. A Lab
   // with a field_country has a marker at its country's centre; one with a
   // field_region shades every country in that region.
-  const onMap = (g) => (g.scope || g.scale) !== 'global';
+  //
+  // canPlace() is the second half of this test, and it was missing. Without it
+  // a group with a city but no coordinates was counted here, given no marker
+  // by the layer, and left out of the overlay table as well: present in the
+  // number, absent from the map, absent from the list. Invisible in the one
+  // way a reader cannot recover from. Now it falls to the overlay, where it is
+  // at least readable, and says why in the console so it can be fixed.
+  const onMap = (g) => (g.scope || g.scale) !== 'global' && canPlace(g);
   const placed = scoped.filter(onMap).length;
+
+  const homeless = scoped.filter((g) => (g.scope || g.scale) !== 'global' && !canPlace(g));
+  if (homeless.length) {
+    console.warn(`[practitioner map] ${homeless.length} group(s) name a place but have `
+      + 'no coordinates, so they cannot be drawn. Add lat and lng, or an iso2 '
+      + 'country code, in the Sheet. Listed in the overlay table meanwhile: '
+      + homeless.map((g) => `${g.id} (${g.city || g.country || 'no place'})`).join(', '));
+  }
 
   // A region counts every country it covers, which is why Africa alone adds 55.
   const countries = new Set();
@@ -143,10 +169,24 @@ function openSheet() {
   const el = $('#pn-sheet');
   const body = $('#pn-sheet-body');
 
-  $('#pn-sheet-sub').textContent = placeless.length
-    ? `${placeless.length} groups that meet online and are not about one country, `
-      + 'so they have nowhere to sit on the map. Everything else about them is here.'
-    : '';
+  // Two different reasons a group is in here, and they deserve different
+  // wording. Most meet online and are about no particular place, which is the
+  // honest answer rather than a gap. A few name a place but carry no
+  // coordinates, which is a gap, and saying so is how it gets fixed.
+  const missingCoords = placeless.filter((g) => (g.scope || g.scale) !== 'global');
+  const noPlaceAtAll = placeless.length - missingCoords.length;
+  const bits = [];
+  if (noPlaceAtAll) {
+    bits.push(`${noPlaceAtAll} ${noPlaceAtAll === 1 ? 'group meets' : 'groups meet'} online and `
+      + `${noPlaceAtAll === 1 ? 'is' : 'are'} not about one country, so `
+      + `${noPlaceAtAll === 1 ? 'it has' : 'they have'} nowhere to sit on the map.`);
+  }
+  if (missingCoords.length) {
+    bits.push(`${missingCoords.length} ${missingCoords.length === 1 ? 'names a place' : 'name a place'} `
+      + 'but has no coordinates in the Sheet yet, so it cannot be drawn.');
+  }
+  if (bits.length) bits.push('Everything else about them is here.');
+  $('#pn-sheet-sub').textContent = bits.join(' ');
 
   body.innerHTML = placeless.length ? placeless.map((g) => {
     const d = details[g.id] || {};
@@ -297,10 +337,17 @@ function showClusterPopup(cluster, at) {
   const place = cluster.members[0];
   // An "about" cluster names the country it enquires into, and says so, rather
   // than borrowing a city name from a group that does not meet anywhere.
-  const where = cluster.about
+  // A region cluster has to be asked first. Its members have no city and no
+  // country at all, so the fallback chain below ended at the literal words
+  // "this place" and the card read "2 GROUPS / this place" over a continent.
+  const where = cluster.region
+    ? cluster.label
+    : cluster.about
     ? (countryNames[place.field_iso3] || place.country || 'this country')
     : (cityName(place.city) || place.country || 'this place');
-  const eyebrow = cluster.about
+  const eyebrow = cluster.region
+    ? `${cluster.members.length} groups across`
+    : cluster.about
     ? `${cluster.members.length} groups about`
     : `${cluster.members.length} groups`;
   const rows = cluster.members.map((g, i) => {
@@ -539,14 +586,32 @@ const REL = [
   { key: 'meets',  head: 'Meets here',       test: (g) => g.scale !== 'global' && g.format !== 'online' },
   { key: 'hosted', head: 'Hosted from here', test: (g) => g.scale !== 'global' && g.format === 'online' },
   { key: 'about',  head: 'About this place', test: (g) => g.scale === 'global' && !!g.field_iso3 },
+  // A group covering a whole region is related to every country in it. Listed
+  // last because it is the least specific claim of the four.
+  { key: 'region', head: 'Works across this region', test: (g) => !!g.field_region },
 ];
 
+// Every group related to a country. "Related" covers four things: meeting
+// there, being run from there, being about it, and covering a region that
+// contains it.
+//
+// That last clause was missing until 31 August, and the effect was the map
+// contradicting itself in the clearest possible way. Nigeria is tinted
+// precisely because the Africa Practice Group covers it, and clicking it
+// answered "No groups here yet. The networks are still growing." Every one of
+// Africa's 55 countries and Latin America's 23 did the same.
+//
+// The layer's own inScope() had the region clause and this did not: two
+// implementations of one question that had drifted apart. Worth remembering
+// next time the same test is about to be written twice.
 function relatedTo(iso3) {
   if (!iso3 || !layerApi) return [];
+  const covers = (g) => !!(g.field_region && regions[g.field_region]
+    && regions[g.field_region].countries.includes(iso3));
   return layerApi.groups().filter((g) => {
     if (g.visible === false) return false;
     if (!activeNets.has(g.network)) return false;
-    return g.iso3 === iso3 || g.field_iso3 === iso3;
+    return g.iso3 === iso3 || g.field_iso3 === iso3 || covers(g);
   });
 }
 

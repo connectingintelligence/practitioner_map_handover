@@ -33,7 +33,24 @@ export const CONFIG = {
   // being reordered. It needs the document to stay shared as "anyone with the
   // link can view". Nothing sensitive is in it: street addresses are stripped
   // before anything reaches the Sheet.
-  SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/1cpGs2nmhxy4QMenG7nMEC1blwxkogS1yZ_dz7fHjlZE/gviz/tq?tqx=out:csv&sheet=map_data',
+  //
+  // ── &headers=1 is not optional. Do not remove it. ──
+  //
+  // Without it, gviz *guesses* how many rows at the top of the sheet are
+  // header. The guess is made from the data: a column of text under a text
+  // heading gives it nothing to go on. Every column in this sheet is text.
+  //
+  // On 31 August it guessed that all 150 rows were header, and returned each
+  // column as one cell with the values joined by spaces: a single row reading
+  // "id pg-praxisgruppe-hannover pg-southern-africa-practice-group ...". The
+  // loader correctly reported that the CSV had no "id" column and fell back to
+  // the bundled snapshot, so the map kept working and simply stopped seeing
+  // anything added to the Sheet. Which is the worst shape a fault can take:
+  // the page looks fine and is quietly months out of date.
+  //
+  // `headers=1` states the answer instead of inviting a guess. Same data, same
+  // tab selection by name, no inference.
+  SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/1cpGs2nmhxy4QMenG7nMEC1blwxkogS1yZ_dz7fHjlZE/gviz/tq?tqx=out:csv&sheet=map_data&headers=1',
 
   // If the Sheet cannot be reached, fall back to the bundled snapshot rather
   // than showing an empty map. A visitor sees slightly older data instead of a
