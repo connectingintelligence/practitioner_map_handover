@@ -504,7 +504,7 @@
   .pn-empty { font-size:11.5px; color:var(--ink-faint); padding:6px 10px; line-height:1.5; }
 </style>
 </head>
-<body data-theme="bone" data-build="2026-08-27b · scope and location">
+<body data-theme="bone" data-build="2026-08-31a · legend trimmed">
 <div id="stage">
   <div id="globe-wrap"></div>
 
@@ -549,22 +549,14 @@
           </svg>
           <span>This whole country, meets online</span>
         </div>
-        <div class="pn-key-row">
-          <svg width="15" height="15" viewBox="-8 -8 16 16" aria-hidden="true">
-            <rect x="-6" y="-4" width="12" height="8" rx="1"
-                  fill="#FBD19F" stroke="var(--accent)" stroke-width="1.4"
-                  stroke-opacity=".55"></rect>
-          </svg>
-          <span>A whole region, shaded</span>
-        </div>
-        <div class="pn-key-row">
-          <svg width="15" height="15" viewBox="-8 -8 16 16" aria-hidden="true">
-            <circle r="4.2" fill="var(--bg)" stroke="var(--ink-dim)" stroke-width="1.8"></circle>
-            <circle r="7" fill="none" stroke="var(--ink-dim)" stroke-width=".9"
-                    stroke-opacity=".45"></circle>
-          </svg>
-          <span>Where a region group is run from, on zoom</span>
-        </div>
+        <!-- Two rows were here, "A whole region, shaded" and "Where a region
+             group is run from, on zoom". Removed 31 August at Max's request.
+             They described three groups out of 149, and the second one
+             explained a marker you cannot see at the zoom level where you are
+             reading the legend. Both cases still say what they are in the card
+             that opens on click, which is where someone actually asks the
+             question. A legend earns its space by explaining what is on screen
+             now. -->
       </div>
 
       <div id="pn-filters"></div>
