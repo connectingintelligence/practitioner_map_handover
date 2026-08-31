@@ -2,7 +2,7 @@
 
 For the daily automation that syncs WordPress posts into the Google Sheet.
 
-Version 1.4 &middot; 27 August 2026 &middot; Connecting Intelligence for The Pocket Project
+Version 1.5 &middot; 31 August 2026 &middot; Connecting Intelligence for The Pocket Project
 
 The Sheet is **Pocket Project Practitioner Map Data**. The map reads from it. This document describes what the automation should write and how it should behave, so it can be built once and left alone.
 
@@ -56,6 +56,7 @@ In this order, with exactly these header names in row 1.
 | 14 | `facilitator` | `group-leader-1` to `group-leader-5` | Non-empty ones joined with `; ` in one cell |
 | 15 | `description` | see below | One short line, plain text, no HTML |
 | 16 | `synced_at` | the automation | ISO timestamp of the run |
+| 17 | `iso2` | derived from `country` | **New in 1.5.** Two-letter country code. See the section below, this is the one real addition |
 
 **On `id`.** Network prefix plus the URL slug: `pg-` for Practice Groups, `rc-` for Resilience Circles, `il-` for Integration Labs, `wh-` for future Witnessing Hubs. So `https://pocketproject.org/pg/praxisgruppe-leipzig/` becomes `pg-praxisgruppe-leipzig`. This matches the ids already in `map_data`, which is what makes the match-on-id rule work from day one. The WordPress post ID would also be unique, but the slug version is readable for the team when they are correcting rows.
 
@@ -66,6 +67,48 @@ In this order, with exactly these header names in row 1.
 **On empty cells.** Empty is fine everywhere except `id`, `network`, `name` and `url`. Empty is much better than a placeholder like `N/A`, which currently appears in some address values.
 
 **On addresses.** The export carries an `address` field, and it is very often a facilitator's home: apartment numbers, residential streets. **Please do not sync it.** I use it once, offline, to work out which city a group belongs to, and it goes no further. Anything that reaches the Sheet can reach the map, and the map is public.
+
+## What changed in 1.5
+
+One new column to sync: **`iso2`**. It is the only thing in this document that adds work, and the section below explains why it is needed. Everything else in 1.5 is a correction to our own code, not to yours.
+
+## What a new group needs before it can be drawn
+
+**This is the most important paragraph in this document, and it was missing until 31 August.**
+
+A city name on its own is not enough to put a group on the map. Nothing in the map turns "Shanghai" into a position. The gazetteer that does that runs offline, on my machine, when I prepare the seed data. It is not part of what ships, and it never runs again after delivery.
+
+So a row that arrives with `city` filled in and `lat`, `lng` and `iso2` all empty **has no position at all**. The map cannot draw it.
+
+This is not a rare edge case. It is what will happen to **every single group added after delivery**, because the sync writes `city` and `country` from WordPress while `lat` and `lng` are only present on the 22 Practice Groups that happen to have the geo field filled. Left alone, the map would quietly stop growing while continuing to look perfectly healthy.
+
+A group can be positioned in any one of these ways, and it needs at least one:
+
+| What is filled | Where it is drawn |
+|---|---|
+| `lat` and `lng` | Exactly there. Best result, and it is what the geo field in WordPress already gives us |
+| `iso2`, e.g. `DE` | At the centre of that country |
+| `location`, e.g. `africa` | Shaded across that whole area |
+| `field_country` | At the centre of the country the group is *about* |
+| none of the above | Nowhere. It falls to the table beside the map |
+
+**What I am asking for: sync `iso2`, derived from the `country` dropdown.**
+
+The dropdown is a fixed list, so this is a lookup table written once, not a judgment call per group. `Germany` becomes `DE`, `Switzerland` becomes `CH`, `Ukraine` becomes `UA`. `International` has no code and should be left empty, which is correct: that group genuinely has no country.
+
+With `iso2` filled, a new group always has somewhere to sit. If the geo field is also filled, the map uses the coordinates instead and the group sits in its actual city rather than the middle of the country. The two work together, and `iso2` is the floor rather than the target.
+
+If you would rather not add it, the alternative is that someone on the team fills `lat` and `lng` by hand for each new group. That is a real ongoing task rather than a one-off, which is why I am suggesting the column.
+
+**How you will know if this goes wrong.** A group with no position now says so. It appears in the table beside the map rather than vanishing, and the browser console names it:
+
+```
+[practitioner map] 1 group(s) name a place but have no coordinates,
+so they cannot be drawn. Add lat and lng, or an iso2 country code,
+in the Sheet. Listed in the overlay table meanwhile: pg-example (Shanghai)
+```
+
+Before 31 August such a row was counted in the "on the map" total, given no marker, and left out of that table too: present in the number, absent from everywhere a person could look. That was our bug and it is fixed.
 
 ## What changed in 1.4
 
@@ -118,7 +161,9 @@ One code per row. A Lab spanning two countries, "Deutschland, Russland: Kollekti
 
 ## Notes on specific fields
 
-**Coordinates.** In the export the geo fields carry a hashed key prefix, for example `884d9804999fc47a3c2694e49ad2536a_lat`. Please output them as plain `lat` and `lng`. 22 published Practice Groups already have them, which is genuinely useful. Everything else I place from city and country, so nothing is blocked by this.
+**Coordinates.** In the export the geo fields carry a hashed key prefix, for example `884d9804999fc47a3c2694e49ad2536a_lat`. Please output them as plain `lat` and `lng`. 22 published Practice Groups already have them, which is genuinely useful.
+
+Everything currently in the Sheet, I placed from city and country before delivery. That was a one-off. It does not happen again for groups added later, which is what the section on positioning above is about.
 
 **Status and visibility.** The map shows a group when the team has not hidden it. Pending, draft and private rows still come through the sync so they are visible in the Sheet, but they are not drawn on the map. This matches the note on the site that only fully approved groups appear.
 

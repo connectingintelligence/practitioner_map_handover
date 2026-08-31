@@ -83,7 +83,11 @@ for-the-team/        the spreadsheet, and what we need decided
 
 **Two decisions from Kosha**, both in `for-the-team/`. Fifteen Integration Labs have a proposed country awaiting confirmation, and the Africa Practice Group needs a choice between three options.
 
-**One column worth adding**, described in `for-noah/COLUMN_SPEC.md`. Meeting times currently come from a one-off extraction, so a group added tomorrow would show no meeting time. Worth settling before the sync is built, because adding a column afterwards means changing the script.
+**Two columns worth adding**, both described in `for-noah/COLUMN_SPEC.md`, and both worth settling before the sync is built rather than after.
+
+`iso2` is the important one. Every group currently on the map was placed from its city by a step that ran once, offline, before delivery, and does not ship. A group added after that arrives with a city and no coordinates, and a city name alone is not something the map can turn into a position. Syncing a two-letter country code from the existing country dropdown gives every new group somewhere to sit. Without it the map quietly stops growing while continuing to look fine.
+
+`meets` is the smaller one. Meeting times also come from that same one-off extraction, so a group added tomorrow would show no meeting time.
 
 **Open Sans is not yet bundled.** The map falls back to a system typeface until it is. One command, and it is described in `for-noah/EMBED_GUIDE.md`.
 

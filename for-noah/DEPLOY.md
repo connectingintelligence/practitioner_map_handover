@@ -90,10 +90,20 @@ If a red bar appears across the top saying the script is stale, the browser is h
 The map reads it through one line in `js/practitioner-config.js`:
 
 ```js
-SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/…/gviz/tq?tqx=out:csv&sheet=map_data',
+SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/…/gviz/tq?tqx=out:csv&sheet=map_data&headers=1',
 ```
 
 If the Sheet is ever copied or recreated, replace that address. Two things to know about it: it selects the tab **by name**, so reordering tabs will not break it, and it requires the document to stay shared as "anyone with the link can view". Nothing sensitive is in it; facilitator street addresses are stripped before anything reaches the Sheet.
+
+**Keep `&headers=1` on the end.** Without it, Google guesses how many rows at the top of the sheet are the header, working it out from the data. Every column in this sheet is text, so there is nothing to work it out from. On 31 August it guessed that all 150 rows were header and returned each column as a single cell with the values run together. The map correctly decided the file was unusable and fell back to its bundled copy, which is the right behaviour but means it stops seeing anything new in the Sheet. `headers=1` states the answer so nothing is inferred.
+
+That failure is worth recognising if it ever recurs, because it does not look like a failure. The map keeps working. The only sign is one line in the browser console:
+
+```
+[practitioner map] the Sheet could not be read, showing the bundled snapshot instead
+```
+
+If you see that, the data on screen is frozen at the last release, however current it looks.
 
 ## The other half of your job
 
