@@ -225,14 +225,34 @@
 
   /* ── network links ─────────────────────────────────────────
      Each network row carries a link out to its own page on
-     pocketproject.org, which is where someone goes to actually join. */
+     pocketproject.org, which is where someone goes to actually join.
+
+     These were written to start at opacity:0 and fade in on hover. Two things
+     were wrong with that, found 31 August when Noah asked for the feature and
+     was told it already existed.
+
+     First the selector: `.pn-net:hover .pn-net-go` is a descendant selector,
+     but .pn-net is the button and .pn-net-go is its *sibling*. It could never
+     match. Only :focus-visible could reveal the link, so unless you tabbed to
+     it with a keyboard the arrow was invisible to everybody, always.
+
+     Second, and the reason it is not simply being fixed as written: hover is
+     the wrong trigger regardless. An affordance that only appears once you
+     have already found it cannot be discovered, and on a touch screen there
+     is no hover at all, so it would never appear on a phone. The map is going
+     onto a public content page where most visitors are new and many are on a
+     phone.
+
+     So it is visible by default and quiet: dim enough not to compete with the
+     network name, solid enough to be seen without being hunted for. */
   .pn-net-go { flex:none; width:20px; height:20px; border-radius:2px; display:inline-flex;
     align-items:center; justify-content:center; color:var(--ink-faint);
-    text-decoration:none; font-size:11px; line-height:1; opacity:0;
+    text-decoration:none; font-size:11px; line-height:1; opacity:.55;
     transition:opacity var(--m-fast) ease, color var(--m-fast) ease,
                background var(--m-fast) ease; }
-  .pn-net:hover .pn-net-go, .pn-net-go:focus-visible { opacity:1; }
-  .pn-net-go:hover { color:var(--accent); background:var(--chip-bg); }
+  .pn-net-row:hover .pn-net-go, .pn-net-go:focus-visible { opacity:1; }
+  .pn-net-go:hover { color:var(--accent); background:var(--chip-bg); opacity:1; }
+  .pn-net-go:focus-visible { outline:1px solid var(--accent); outline-offset:1px; }
 
   /* ── filters ───────────────────────────────────────────────── */
   .pn-filter { margin-top:16px; padding-top:14px; border-top:1px solid var(--rule); }
@@ -527,7 +547,7 @@
   .pn-empty { font-size:11.5px; color:var(--ink-faint); padding:6px 10px; line-height:1.5; }
 </style>
 </head>
-<body data-theme="bone" data-build="2026-08-31d · live Sheet read repaired">
+<body data-theme="bone" data-build="2026-08-31e · network links visible">
 <div id="stage">
   <div id="globe-wrap"></div>
 

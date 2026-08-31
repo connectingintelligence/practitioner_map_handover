@@ -1,6 +1,8 @@
-# Two Africa groups, one changed and one question
+# Two Africa groups, and what continental shading turned out to cost
 
-For Kosha &middot; 27 August 2026 &middot; Connecting Intelligence
+For Kosha &middot; updated 31 August 2026 &middot; Connecting Intelligence
+
+**Read the last section first if you only read one.** The first two are settled and are here as a record. The last one is a live question, and it is the one that matters most for how the map reads.
 
 Two Practice Groups have Africa in their name and neither sat comfortably on the map. One is now resolved. The other needs a decision from you, because it turns on what the group actually is rather than on anything the data can settle.
 
@@ -26,9 +28,9 @@ So it is now a normal marker on Cape Town, drawn hollow, with the card reading *
 
 If we have this wrong, and the group really is pan-regional in a way that makes a Cape Town marker misleading, say so and it goes back to the panel beside the map.
 
-## Africa Practice Group, still in the panel, and a question for you
+## Africa Practice Group, now shown across the continent
 
-This one we have left alone, because following the same logic gives an odd answer.
+**Resolved since this note was first written.** You asked for this group to show across the whole of Africa, and it now does. The reasoning below is kept because it explains how we got there.
 
 | field | value |
 |---|---|
@@ -41,16 +43,44 @@ By the rule we just applied to the Southern Africa group, this would become a ma
 
 Worth knowing what came before: this group previously carried coordinates in the middle of the Congo basin. Those were not yours. I placed them there myself, because Berlin looked wrong to me, and I wrote a special case into the pipeline so the country would not override my guess. That has been removed. It is exactly the kind of quiet invention this map should not contain, and it is why I would rather ask than decide.
 
-**Three options:**
+**What we built.** Reach and anchor are now two separate fields rather than one. `scope` says how far a group reaches, `location` says where it is rooted. The Africa Practice Group has scope `continental` and location `africa`, and is anchored in Berlin.
 
-1. **Leave it in the panel**, under "Not tied to one place", where it is visible, named and clickable. Honest, and it is where it sits today.
-2. **Place it on Berlin**, hollow, reading "Online, hosted from Berlin, Germany". Follows your data exactly and makes no claim about reach, but a visitor may find the dot puzzling.
-3. **Correct the country field**, if Germany is simply where a facilitator happens to live and is not what you would want shown. Then it can go wherever is right.
-
-Our instinct is the first, but you know the group and we do not.
+So the map shades the continent when you are zoomed out, and as you zoom in a small marker appears on Berlin, with the card reading **"Across Africa, run from Berlin"**. Both statements are true and neither has to be given up. The same treatment carries the two Latin American Labs.
 
 ## The wider pattern
 
 Both of these are the same gap, and it is worth naming because it will come up again. **A group can relate to a place in ways a map cannot draw**: where it meets, where it is run from, what it is about, and who it is for. We now distinguish the first three. The fourth, who is welcome, lives in the words and always will.
 
-The related open question is regions. The Balkans, Latin America, South Asia and Early Modern Europe each have an Integration Lab devoted to them, and none has a country code because none is a country. Those Labs sit in the panel. If that matters, the answer is a second column for a region, which is more work for both of us. Our view is that four Labs is not worth it, but it is your call.
+## The question: three groups now colour 77 countries
+
+This is the cost of continental shading, and we would rather show you the arithmetic than quietly design around it.
+
+A country on the map is tinted for one of two reasons. Either groups are actually there, or it falls inside a region that some group claims. Those look identical on screen.
+
+As of today, of the 93 countries with any colour on them:
+
+| tinted because | countries | groups responsible |
+|---|---|---|
+| they are inside Africa | 55 | 1 |
+| they are inside Latin America | 22 | 2 |
+| a group is genuinely there | 16 | 147 |
+
+**Three groups colour 77 countries. The other 147 groups colour 16.**
+
+The shade itself is accurate: each African country shows the palest step, meaning one group, and Germany shows the darkest, meaning about twenty five. But almost nobody reads a map that way. Area is read as quantity long before shade is. Seen quickly, the map says the network is enormous across Africa and Latin America and thin in Europe, which is the reverse of what is true.
+
+We do not think that is a small cosmetic matter in this particular field. A map about collective trauma that renders Africa as one undifferentiated block, and Europe as named cities, is making a familiar move, and it would be making it on our watch rather than the network's.
+
+**To be clear about where this came from:** it is not a fault in your request. You asked for the Africa group to show across the continent, which is right, because that group genuinely has no single country. The shading is simply the most visible way to say so, and visibility is exactly the problem.
+
+**Options, in the order we would suggest considering them:**
+
+1. **Leave it as it is.** The reading is imperfect but the underlying claim is true, and the group is properly represented. This is what is deployed today.
+2. **Make the region wash much fainter** than a country with real groups, so the two reasons stop looking the same. Keeps everything you asked for and costs us very little.
+3. **Name the region without shading it.** The label "Africa" prints on the continent, the groups stay clickable, and tint then means one thing only: groups are actually here.
+
+We have not changed anything. It is your call, and the map works either way.
+
+## Also still open, from before
+
+The Balkans, South Asia and Early Modern Europe each have an Integration Lab devoted to them and none is a country. The machinery now exists to shade any of them, and `the_balkans` is already defined in the data file and unused. Whether to switch them on is the same question as above, one level smaller.

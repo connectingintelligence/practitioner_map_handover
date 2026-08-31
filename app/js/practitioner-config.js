@@ -52,6 +52,27 @@ export const CONFIG = {
   // tab selection by name, no inference.
   SHEET_CSV_URL: 'https://docs.google.com/spreadsheets/d/1cpGs2nmhxy4QMenG7nMEC1blwxkogS1yZ_dz7fHjlZE/gviz/tq?tqx=out:csv&sheet=map_data&headers=1',
 
+  // ── where each network's "find out more" arrow points ──
+  //
+  // The small arrow beside each network in the filter panel opens that
+  // network's own page on pocketproject.org, which is where somebody actually
+  // goes to join a group.
+  //
+  // These lived in practitioner-app.js until 31 August, which contradicted the
+  // promise at the top of this file. Noah asked where the links are defined,
+  // saying the exact addresses are likely to change, and the honest answer at
+  // the time was "line 798 of a 1200 line file". Now it is here.
+  //
+  // Editing one is safe: change the address between the quotes. Setting one to
+  // an empty string removes that arrow and leaves the row alone, which is the
+  // right thing for Witnessing Hubs if that page does not exist yet.
+  NETWORK_PAGES: {
+    practice_groups:    'https://pocketproject.org/practice-groups/',
+    resilience_circles: 'https://pocketproject.org/resilience-circles/',
+    integration_labs:   'https://pocketproject.org/integration-labs/',
+    witnessing_hubs:    'https://pocketproject.org/witnessing-hubs/',
+  },
+
   // If the Sheet cannot be reached, fall back to the bundled snapshot rather
   // than showing an empty map. A visitor sees slightly older data instead of a
   // broken page, and the reason is logged to the console.

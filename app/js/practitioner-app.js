@@ -16,6 +16,7 @@ import { createGlobe } from './core/projection.js';
 import { applyTheme } from './core/theme.js';
 import { loadJSON, loadCountryMeta } from './core/data-loader.js';
 import { loadGroups } from './practitioner-sheet.js';
+import { CONFIG } from './practitioner-config.js';
 import layerModule from './layers/practitioner-networks/index.js';
 
 const $ = (s) => document.querySelector(s);
@@ -25,7 +26,7 @@ const $ = (s) => document.querySelector(s);
 // on 27 August were spent on a browser quietly running an old copy of this file
 // against new markup. If the stamp on screen is not the one below, the page is
 // stale and nothing else you are looking at can be trusted.
-const BUILD = '2026-08-31d · live Sheet read repaired';
+const BUILD = '2026-08-31e · network links visible';
 
 // ── read the embed parameters ──
 // ?layer= opens showing one network, ?country= narrows and zooms to one
@@ -795,12 +796,15 @@ function buildFilters(groups) {
 
 // The page on pocketproject.org where each network is actually explained and
 // where someone goes to join. Kosha asked for these on 27 August.
-const NETWORK_PAGES = {
+// Defined in practitioner-config.js, so the one file the client was told to
+// edit is the one file that actually holds it. The literals stay here as a
+// fallback so an older or hand-edited config cannot silently drop the links.
+const NETWORK_PAGES = Object.assign({
   practice_groups:    'https://pocketproject.org/practice-groups/',
   resilience_circles: 'https://pocketproject.org/resilience-circles/',
   integration_labs:   'https://pocketproject.org/integration-labs/',
   witnessing_hubs:    'https://pocketproject.org/witnessing-hubs/',
-};
+}, (CONFIG && CONFIG.NETWORK_PAGES) || {});
 
 function buildNetworkList(networks, counts) {
   const wrap = $('#pn-nets');
