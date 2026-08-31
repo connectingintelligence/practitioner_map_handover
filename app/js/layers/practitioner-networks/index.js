@@ -139,6 +139,48 @@ export default {
       return d3.geoDistance([lon, lat], [-r[0], -r[1]]) < Math.PI / 2;
     }
 
+    // Where to print a region's name. Read from practitioner_regions.json,
+    // where each area carries a `label_at`, rather than computed here.
+    //
+    // It was computed here first, as the area-weighted mean of the member
+    // countries' centroids, and that is still how the stored numbers were
+    // derived. The reason it moved into the file is that the mean alone is not
+    // good enough and this layer cannot tell: it is handed country centroids,
+    // not country outlines, so it has no way to check whether its own answer
+    // landed on the sea or somewhere absurd. Computed live, Europe came out at
+    // 68 degrees north in Siberia, because Russia's area dominates the average.
+    // Offline the point can be tested against the real polygons and corrected,
+    // which is what was done for Europe, North America and Oceania.
+    //
+    // Falls back to a plain unweighted mean so a region added to the file
+    // without a label_at still gets a label rather than disappearing. Averaged
+    // as 3D unit vectors, because the mean of -170 and 170 degrees is 0, the
+    // wrong side of the planet.
+    const regionCentres = new Map();
+    function regionCentre(key) {
+      const stored = REGIONS[key] && REGIONS[key].label_at;
+      if (Array.isArray(stored) && stored.length === 2) return stored;
+      if (regionCentres.has(key)) return regionCentres.get(key);
+      const cents = ctx.getCentroids() || {};
+      let x = 0, y = 0, z = 0, n = 0;
+      for (const iso of regionCountries(key)) {
+        const c = cents[iso];
+        if (!c) continue;                      // microstates the basemap omits
+        const lon = c[0] * Math.PI / 180, lat = c[1] * Math.PI / 180;
+        x += Math.cos(lat) * Math.cos(lon);
+        y += Math.cos(lat) * Math.sin(lon);
+        z += Math.sin(lat);
+        n++;
+      }
+      if (!n) return null;                     // centroids not ready: do not cache
+      x /= n; y /= n; z /= n;
+      const h = Math.sqrt(x * x + y * y);
+      const out = (h < 1e-9 && Math.abs(z) < 1e-9) ? null
+        : [Math.atan2(y, x) * 180 / Math.PI, Math.atan2(z, h) * 180 / Math.PI];
+      regionCentres.set(key, out);
+      return out;
+    }
+
     function anchorOf(g) {
       if (g.scale === 'national' && g.iso3) {
         const c = ctx.getCentroids()[g.iso3];
@@ -157,9 +199,28 @@ export default {
       const zoom = ctx.globe.getZoom ? ctx.globe.getZoom() : 1;
       for (const g of groups) {
         if (isRegion(g)) {
-          // Zoomed out the shading says it all. Zoomed in, show where the group
-          // is actually run from, if the data says. Marked so it can be drawn
-          // and labelled differently from a group that meets there.
+          // One quiet label per region, always visible. Until 31 August the
+          // shading was the only sign these groups existed, and at globe scale
+          // that meant Latin America's two Labs could not be seen or clicked
+          // at all: unlike the Africa group they have no city, no country and
+          // no coordinates in the Sheet, so there was no dot to fall back on.
+          const rk = fieldRegion(g);
+          const p = regionCentre(rk);
+          if (p) {
+            const key = `region:${rk}`;
+            let c = by.get(key);
+            if (!c) {
+              c = { key, lon: p[0], lat: p[1], region: rk,
+                    label: (REGIONS[rk] && REGIONS[rk].label) || rk,
+                    about: false, members: [] };
+              by.set(key, c);
+            }
+            c.members.push(g);
+          }
+          // Zoomed in, also show where the group is actually run from, if the
+          // data says. "Across Africa" and "run from Berlin" are both true and
+          // belong at different distances. Latin America has nothing to show
+          // here, which is why the label above cannot depend on it.
           if (zoom < ZOOM_SHOW_ANCHOR || !g.anchor_iso3) continue;
           const a = (g.lng != null && g.lat != null)
             ? [g.lng, g.lat] : ctx.getCentroids()[g.anchor_iso3];
@@ -196,15 +257,20 @@ export default {
       // "Related to" rather than "meets in", so a Lab enquiring into a country
       // counts towards its tint just as a group meeting there does.
       const counts = {};
-      const inRegion = new Set();
       for (const g of scope().scoped) {
         if (isRegion(g)) {
-          // Every country in the region is tinted, and marked so it can also
-          // take the heavier outline. A region counts once per country, not
-          // once overall, so a country inside two regions reads as denser.
+          // Every country in the region is tinted. A region counts once per
+          // country, not once overall, so a country inside two regions reads
+          // as denser.
+          //
+          // Each was also given an `in-region` class here, so it could take a
+          // heavier outline. Both the outline and the class went on 31 August:
+          // the outlines crowded into a net over South America, and once the
+          // rule was gone the class styled nothing. A class nobody reads is a
+          // promise the code does not keep, so it went with it. The region now
+          // announces itself with a label instead.
           for (const c of regionCountries(g.field_region)) {
             counts[c] = (counts[c] || 0) + 1;
-            inRegion.add(c);
           }
           continue;
         }
@@ -212,7 +278,6 @@ export default {
         if (!iso) continue;
         counts[iso] = (counts[iso] || 0) + 1;
       }
-      opts.onRegionCountries?.(inRegion);
       const max = Math.max(1, ...Object.values(counts));
       // The lightest step used to be #f0dcc4, which sat 0.006 in lightness from
       // the ocean's #eadfcd. A country with one group was indistinguishable
@@ -332,16 +397,30 @@ export default {
     function buildNode(sel, c) {
       const many = c.members.length > 1;
       const hit = sel.append('g')
-        .attr('class', many ? 'pn-clusternode' : 'pn-marker')
+        .attr('class', c.region ? 'pn-regionlabel' : many ? 'pn-clusternode' : 'pn-marker')
         .attr('tabindex', 0)
         .attr('role', 'button')
-        .attr('aria-label', many
+        .attr('aria-label', c.region
+          ? `${c.members.length} group${c.members.length === 1 ? '' : 's'} across ${c.label}`
+          : many
           ? (c.about
               ? `${c.members.length} groups about ${c.members[0].country || 'this country'}`
               : `${c.members.length} groups in ${c.members[0].city || c.members[0].country || 'this place'}`)
           : c.members[0].name);
 
-      if (many) {
+      if (c.region) {
+        // Text only. No disc, no outline, no leader line. The shading is
+        // already carrying the area, and a marker on top of it would be the
+        // map saying the same thing twice, loudly. The count is appended only
+        // when there is more than one, so Africa reads "Africa" rather than
+        // "Africa 1".
+        const cc = colorOf(c.members[0]);
+        hit.append('text')
+          .attr('class', 'pn-region-t')
+          .attr('text-anchor', 'middle').attr('dy', '0.32em')
+          .style('fill', cc)
+          .text(many ? `${c.label} ${c.members.length}` : c.label);
+      } else if (many) {
         // Solid only when at least one group in the cluster actually meets
         // there. An "about" cluster never does, and keeps the diamond so the
         // shape still reads as a subject rather than a venue.
@@ -412,7 +491,7 @@ export default {
     // Selection is a class, not a rebuild, so changing it costs nothing.
     function restyle() {
       gMarks.selectAll('g.pn-cluster').each(function (c) {
-        d3.select(this).select('.pn-marker, .pn-clusternode')
+        d3.select(this).select('.pn-marker, .pn-clusternode, .pn-regionlabel')
           .classed('is-selected', !!isSelected(c));
       });
     }

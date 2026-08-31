@@ -25,7 +25,7 @@ const $ = (s) => document.querySelector(s);
 // on 27 August were spent on a browser quietly running an old copy of this file
 // against new markup. If the stamp on screen is not the one below, the page is
 // stale and nothing else you are looking at can be trusted.
-const BUILD = '2026-08-31a · legend trimmed';
+const BUILD = '2026-08-31b · region labels';
 
 // ── read the embed parameters ──
 // ?layer= opens showing one network, ?country= narrows and zooms to one
@@ -402,7 +402,14 @@ function showClusterTip(cluster, ev) {
   const el = $('#tooltip');
   const first = cluster.members[0];
   let place, bits;
-  if (cluster.about) {
+  if (cluster.region) {
+    // A region cluster has no city and no country to fall back on: the two
+    // Latin America Labs record neither. Without this branch `place` came out
+    // as the empty string and the tooltip showed a blank line.
+    place = cluster.label;
+    const n = cluster.members.length;
+    bits = [`${n} ${n === 1 ? 'group' : 'groups'} working across this region`];
+  } else if (cluster.about) {
     place = countryNames[first.field_iso3] || first.country || '';
     const n = cluster.members.length;
     bits = [`${n} ${n === 1 ? 'group' : 'groups'} about this country, meeting online`];
@@ -816,19 +823,33 @@ async function main() {
   // did on 27 August: the pair agreed with each other and disagreed with the
   // data. So the data file states the build it belongs to as well, and the
   // data is fetched with no-store and cannot be stale.
+  //
+  // The data stamp only exists in the bundled snapshot. A Google Sheet has no
+  // build stamp and should not have one: it is edited by the team on their own
+  // schedule and is not versioned with the code. So on the live-Sheet path,
+  // which is the normal healthy path, there are two stamps to compare, not
+  // three. An earlier version of this message recited `data says "nothing"`
+  // in that case, which read like a third thing broken and would have had
+  // Noah looking for a missing file that was never meant to be there.
+  const fromSheet = loaded.source === 'sheet';
   const dataBuild = groupData && groupData.meta && groupData.meta.build;
   const want = document.body.dataset.build;
   const stale = (want && want !== BUILD) || (dataBuild && dataBuild !== BUILD);
   if (stale) {
+    // Name only the stamps that disagree. Listing all of them, including the
+    // ones that are fine, buries the actual fault.
+    const parts = [`script "${BUILD}"`];
+    if (want && want !== BUILD) parts.push(`page "${want}"`);
+    if (dataBuild && dataBuild !== BUILD) parts.push(`data "${dataBuild}"`);
+    const where = fromSheet ? '' : ' The group data is the bundled snapshot.';
     const bar = document.createElement('div');
     bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:999;padding:9px 16px;'
       + 'background:#7a2d16;color:#fff;font:12px/1.5 system-ui;text-align:center;';
-    bar.textContent = 'This page is running an old cached copy. Script says '
-      + `"${BUILD}", page says "${want || 'nothing'}", data says `
-      + `"${dataBuild || 'nothing'}". In Safari: Develop menu, Empty Caches, `
-      + 'then reload. Or open it in a private window.';
+    bar.textContent = `This page is running an old cached copy: ${parts.join(', ')}.`
+      + `${where} In Safari: Develop menu, Empty Caches, then reload. `
+      + 'Or open it in a private window.';
     document.body.appendChild(bar);
-    console.warn(`[practitioner map] STALE: script "${BUILD}", page "${want}", data "${dataBuild}"`);
+    console.warn(`[practitioner map] STALE: ${parts.join(', ')}`);
   }
   const stamp = document.querySelector('#topbar .brand-sub');
   if (stamp) stamp.title = `build ${BUILD}`;
@@ -925,15 +946,9 @@ async function main() {
     options: {
       activeNetworks: activeNets,
       regions,
-      // Countries inside a highlighted region get a heavier outline, so the
-      // region reads as one area rather than a scatter of tinted states.
-      // The ISO code lives on the bound datum rather than the element, so this
-      // has to go through d3. The class survives re-renders because the engine
-      // updates the existing paths rather than rebuilding them.
-      onRegionCountries: (set) => {
-        d3.selectAll('#globe-wrap .country')
-          .classed('in-region', (d) => !!(d && d.__iso3 && set.has(d.__iso3)));
-      },
+      // An onRegionCountries hook lived here, tagging every country in a
+      // highlighted region so it could take a heavier outline. Removed with
+      // the outline itself on 31 August. See the note in the layer's paint().
       countryFilter: params.country ? (iso2to3[params.country] || null) : null,
       onSelect: showPopup,
       onAnchor: placePopup,

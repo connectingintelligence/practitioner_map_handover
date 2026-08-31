@@ -5,6 +5,7 @@
   "_not_in_basemap": [
     "ATA",
     "FLK",
+    "GUF",
     "KNA",
     "LCA",
     "MCO",
@@ -71,6 +72,10 @@
       "ZMB",
       "ZWE",
       "ESH"
+    ],
+    "label_at": [
+      18.57,
+      6.5
     ]
   },
   "europe": {
@@ -122,6 +127,10 @@
       "CHE",
       "UKR",
       "GBR"
+    ],
+    "label_at": [
+      15.5,
+      49.5
     ]
   },
   "asia": {
@@ -176,6 +185,10 @@
       "UZB",
       "VNM",
       "YEM"
+    ],
+    "label_at": [
+      85.21,
+      33.6
     ]
   },
   "north_america": {
@@ -207,6 +220,10 @@
       "USA",
       "GRL",
       "PRI"
+    ],
+    "label_at": [
+      -100.0,
+      40.0
     ]
   },
   "south_america": {
@@ -227,6 +244,10 @@
       "VEN",
       "GUF",
       "FLK"
+    ],
+    "label_at": [
+      -60.43,
+      -14.08
     ]
   },
   "oceania": {
@@ -249,6 +270,10 @@
       "VUT",
       "NCL",
       "PYF"
+    ],
+    "label_at": [
+      134.0,
+      -25.0
     ]
   },
   "antarctica": {
@@ -256,6 +281,10 @@
     "kind": "continent",
     "countries": [
       "ATA"
+    ],
+    "label_at": [
+      82.07,
+      -84.94
     ]
   },
   "latin_america": {
@@ -286,6 +315,10 @@
       "BLZ",
       "HTI",
       "GUF"
+    ],
+    "label_at": [
+      -65.07,
+      -9.93
     ]
   },
   "southern_africa": {
@@ -303,6 +336,10 @@
       "ZMB",
       "MWI",
       "AGO"
+    ],
+    "label_at": [
+      24.57,
+      -19.49
     ]
   },
   "balkans": {
@@ -321,6 +358,11 @@
       "ROU",
       "SRB",
       "SVN"
+    ],
+    "label_at": [
+      22.44,
+      43.54
     ]
-  }
+  },
+  "_label_at_note": "Where to print the region's name on the map. Derived from the basemap, not chosen freely: for most regions it is the area-weighted mean of the member countries' centroids, verified to fall inside a member country. Europe, North America and Oceania are set by hand, because area weighting put them in Siberia, central Canada and Papua New Guinea respectively, which is inside the region but not where anyone looks for the name. The label states which shaded area is which; the shading itself still carries the extent, and nothing here asserts a boundary."
 }

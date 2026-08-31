@@ -75,11 +75,13 @@
     transition:opacity var(--m-base) var(--ease-soft), stroke-width var(--m-fast) var(--ease-soft), fill var(--m-base) ease; }
   #globe-wrap .country:hover { stroke:var(--accent); stroke-width:1.1; }
   #globe-wrap .country[data-dimmed="true"] { opacity:.28; }
-  /* Countries inside a highlighted region: same tint as everything else, but a
-     heavier outline so the region reads as one area rather than a scatter of
-     separately shaded states. Kosha asked for this on 27 August. */
-  #globe-wrap .country.in-region { stroke:var(--accent); stroke-width:.9;
-    stroke-opacity:.55; }
+  /* Countries in a highlighted region carried a heavy accent outline here, so
+     the region would read as one area. Removed 31 August: at globe scale the
+     outlines crowded together into a net over South America and drew more
+     attention than the groups they were meant to point at. The shared tint
+     already groups them, and the region now names itself with a label, which
+     also gives its groups something to be clicked through. The class that
+     carried this rule was removed with it. */
   #globe-wrap .ocean { fill:var(--ocean); stroke:var(--rule); stroke-width:.5; }
   #globe-wrap .graticule { fill:none; stroke:color-mix(in srgb, var(--ink) 6%, transparent); stroke-width:.5; }
   #globe-wrap .sphere-shade, #globe-wrap .atmos, #globe-wrap .overlay { pointer-events:none; }
@@ -363,6 +365,27 @@
 
   .pn-count { font-size:12px; font-weight:600; fill:#fff; pointer-events:none;
     font-family:'Open Sans',system-ui,sans-serif; }
+
+  /* ── region label ──────────────────────────────────────────
+     The name of a shaded region, sitting on the region itself. Deliberately
+     the quietest thing the layer draws: small, letterspaced, no disc and no
+     outline, in the network's own colour. The shading has already claimed
+     the area, so this only has to say which shading is which.
+     paint-order:stroke puts a thin bone halo *behind* the glyphs, which keeps
+     it readable over the darker end of the tint without a box around it. */
+  .pn-regionlabel { cursor:pointer; pointer-events:auto; }
+  .pn-regionlabel:focus { outline:none; }
+  .pn-region-t {
+    font-family:'Open Sans',system-ui,sans-serif;
+    font-size:10.5px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    paint-order:stroke; stroke:var(--bg); stroke-width:3px; stroke-linejoin:round;
+    fill-opacity:.85;
+    transition:fill-opacity var(--m-fast) var(--ease-soft); }
+  .pn-regionlabel:hover .pn-region-t,
+  .pn-regionlabel:focus-visible .pn-region-t,
+  .pn-regionlabel.is-selected .pn-region-t { fill-opacity:1; }
+  .pn-regionlabel.is-selected .pn-region-t,
+  .pn-regionlabel:focus-visible .pn-region-t { text-decoration:underline; }
   #globe-wrap .overlay { pointer-events:none; }
 
   /* filter list, reusing the Atlas layer-panel language */
@@ -504,7 +527,7 @@
   .pn-empty { font-size:11.5px; color:var(--ink-faint); padding:6px 10px; line-height:1.5; }
 </style>
 </head>
-<body data-theme="bone" data-build="2026-08-31a · legend trimmed">
+<body data-theme="bone" data-build="2026-08-31b · region labels">
 <div id="stage">
   <div id="globe-wrap"></div>
 

@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""
+Download Open Sans and vendor it beside the map. Run once.
+
+    python3 vendor/vendor_open_sans.py
+
+The map ships every asset locally and needs no internet at runtime: d3, topojson,
+the basemap and the fonts all sit in vendor/. This is the one build step that
+needs a network connection, because Open Sans has to come from somewhere.
+
+What it fetches: weights 400, 600 and 700, in the latin, latin-ext and cyrillic
+subsets. Cyrillic is not optional, eighteen groups are published in Ukrainian.
+Ukrainian sits in the plain cyrillic range, so cyrillic-ext is not needed.
+About 220 KB in total.
+
+Open Sans is licensed under the SIL Open Font License 1.1, which permits
+redistribution alongside the site. The licence is written out next to the files.
+
+Writes:
+    vendor/fonts/open-sans/*.woff2
+    vendor/open-sans.css
+    vendor/fonts/open-sans/OFL.txt
+
+Safe to re-run. Existing files are overwritten.
+"""
+
+import re
+import shutil
+import ssl
+import subprocess
+import sys
+import urllib.request
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+OUT = HERE / "fonts" / "open-sans"
+
+CSS_URL = ("https://fonts.googleapis.com/css2"
+           "?family=Open+Sans:wght@400;600;700&display=swap")
+
+# Google serves different files depending on the user agent. This one gets
+# woff2, which every browser released since about 2016 supports.
+UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
+
+WANT_SUBSETS = {"latin", "latin-ext", "cyrillic"}
+
+OFL_NOTE = """Open Sans
+Copyright 2020 The Open Sans Project Authors
+https://github.com/googlefonts/opensans
+
+Licensed under the SIL Open Font License, Version 1.1.
+The full licence text: https://openfontlicense.org
+
+Vendored here so the map runs without an internet connection, which is a
+requirement of this build. Fetched by vendor/vendor_open_sans.py.
+"""
+
+
+def _ssl_context():
+    """A context with certificates that actually verify.
+
+    Python installed from python.org or through Anaconda ships without the
+    system CA bundle, so every HTTPS request fails with
+    CERTIFICATE_VERIFY_FAILED until someone runs Install Certificates.command.
+    certifi carries its own bundle and is almost always already present; if it
+    is not, we fall back to curl below, which uses the macOS keychain.
+    """
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
+
+
+def get(url, binary=False):
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": UA})
+        with urllib.request.urlopen(req, timeout=30, context=_ssl_context()) as r:
+            data = r.read()
+    except Exception as e:
+        # curl is on every Mac and trusts the system roots, so it succeeds
+        # where a certificate-less Python cannot.
+        if not shutil.which("curl"):
+            raise
+        out = subprocess.run(
+            ["curl", "-sSL", "--fail", "-A", UA, url],
+            capture_output=True, timeout=60)
+        if out.returncode != 0:
+            raise RuntimeError(
+                f"{e}\n  and curl also failed: {out.stderr.decode()[:200]}")
+        data = out.stdout
+    return data if binary else data.decode("utf-8")
+
+
+def main():
+    try:
+        css = get(CSS_URL)
+    except Exception as e:
+        print(f"Could not reach Google Fonts: {e}")
+        if "CERTIFICATE_VERIFY" in str(e):
+            print("\nThat is a certificate problem in this Python, not a network problem.")
+            print("Either of these fixes it permanently:")
+            print("    pip install certifi")
+            print("    /Applications/Python*/Install\\ Certificates.command")
+        print("\nThe map still works without this. Open Sans simply falls back to the")
+        print("system sans-serif until the files are in place.")
+        return 1
+
+    blocks = re.findall(r"/\*\s*([a-z-]+)\s*\*/\s*@font-face\s*\{([^}]+)\}", css)
+    if not blocks:
+        print("Google Fonts returned something unexpected; nothing downloaded.")
+        return 1
+
+    OUT.mkdir(parents=True, exist_ok=True)
+    faces, total = [], 0
+
+    for subset, body in blocks:
+        if subset not in WANT_SUBSETS:
+            continue
+        weight = re.search(r"font-weight:\s*(\d+)", body).group(1)
+        url = re.search(r"url\((https:[^)]+)\)", body).group(1)
+        rng = re.search(r"unicode-range:\s*([^;]+);", body).group(1).strip()
+
+        name = f"open-sans-{subset}-{weight}.woff2"
+        data = get(url, binary=True)
+        if data[:4] != b"wOF2":
+            print(f"  {name}: not a woff2 file, skipped")
+            continue
+        (OUT / name).write_bytes(data)
+        total += len(data)
+        faces.append((name, weight, rng, subset))
+        print(f"  {name}  {len(data) // 1024} KB")
+
+    if not faces:
+        print("Nothing downloaded.")
+        return 1
+
+    lines = [
+        "/* Open Sans, vendored. Generated by vendor/vendor_open_sans.py, do not",
+        "   edit by hand. SIL Open Font License 1.1, see fonts/open-sans/OFL.txt.",
+        "",
+        "   Georgia is the other brand face and is websafe, so it needs no files. */",
+        "",
+    ]
+    for name, weight, rng, subset in faces:
+        lines += [
+            f"/* {subset} */",
+            "@font-face {",
+            "  font-family: 'Open Sans';",
+            "  font-style: normal;",
+            f"  font-weight: {weight};",
+            "  font-display: swap;",
+            f"  src: url('fonts/open-sans/{name}') format('woff2');",
+            f"  unicode-range: {rng};",
+            "}",
+            "",
+        ]
+    (HERE / "open-sans.css").write_text("\n".join(lines), encoding="utf-8")
+    (OUT / "OFL.txt").write_text(OFL_NOTE, encoding="utf-8")
+
+    print(f"\n{len(faces)} files, {total // 1024} KB total")
+    print(f"wrote {HERE / 'open-sans.css'}")
+    print("\npractitioner.html already links it. Reload the map and Open Sans is live.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
