@@ -1,0 +1,14 @@
+This empty file tells GitHub Pages to serve the repository as plain static
+files instead of running it through Jekyll first.
+
+Two reasons it is here.
+
+Jekyll hides anything whose name begins with an underscore, and silently
+rewrites files it thinks are templates. Nothing in app/ starts with an
+underscore today, but a future data file might, and the failure would look
+like a missing file rather than a policy.
+
+It also matches how the map is actually deployed on the Pocket Project's
+server: files handed to a web server exactly as they sit on disk, no build
+step in between. Turning Jekyll off keeps GitHub Pages an honest rehearsal
+for that rather than a slightly different environment.
