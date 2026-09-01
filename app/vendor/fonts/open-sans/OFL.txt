@@ -1,0 +1,9 @@
+Open Sans
+Copyright 2020 The Open Sans Project Authors
+https://github.com/googlefonts/opensans
+
+Licensed under the SIL Open Font License, Version 1.1.
+The full licence text: https://openfontlicense.org
+
+Vendored here so the map runs without an internet connection, which is a
+requirement of this build. Fetched by vendor/vendor_open_sans.py.

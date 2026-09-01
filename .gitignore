@@ -14,9 +14,17 @@ __pycache__/
 .DS_Store
 .venv/
 
-# Vendored fonts are fetched by app/vendor/vendor_open_sans.py at build time.
-# Committing binaries makes the history heavy for no benefit, and the licence
-# is satisfied either way. Uncomment the negation if you would rather they be
-# in the repo so a clone works with no network at all.
-app/vendor/fonts/
-# !app/vendor/fonts/open-sans/OFL.txt
+# Open Sans IS committed, deliberately. 282 KB across nine woff2 files.
+#
+# This used to exclude them, on the reasoning that binaries make a history
+# heavy and the fetch script is right there. Both true, and both beside the
+# point: with the fonts excluded, everyone who received this repository got a
+# map in the wrong typeface. The Pages preview Kosha reviews, and the folder
+# Noah uploads, would both have silently fallen back to the system sans while
+# the brand guidelines ask for Open Sans.
+#
+# A font the deliverable cannot be delivered without is not a build artifact.
+# 282 KB once, against a step every recipient has to know to run and would not.
+#
+# The licence is satisfied either way: OFL permits redistribution, and OFL.txt
+# sits beside the files.

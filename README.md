@@ -89,7 +89,7 @@ for-the-team/        the spreadsheet, and what we need decided
 
 `meets` is the smaller one. Meeting times also come from that same one-off extraction, so a group added tomorrow would show no meeting time.
 
-**Open Sans is not yet bundled.** The map falls back to a system typeface until it is. One command, and it is described in `for-noah/EMBED_GUIDE.md`.
+**One question for Kosha about how the map reads**, in `for-the-team/NOTE_africa_groups.md`. Because Africa and Latin America are shaded across every member country, three groups currently colour 77 countries while the other 147 colour 16. The shading is accurate but area reads as quantity, so the map can suggest the network is larger in Africa than in Europe, which is the reverse of the truth. Nothing is blocked and three options are set out there.
 
 ## Questions
 

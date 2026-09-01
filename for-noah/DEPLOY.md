@@ -59,18 +59,13 @@ Unrecognised values fail softly: a typo shows the whole map rather than an error
 
 Cloudflare sits in front of the site and will cache the app shell, which is what you want. **It will not cache the group data**, because that is fetched from Google on a different origin. So content edits appear without a purge; only a new version of the map itself needs one.
 
-## Fonts, one command before uploading
+## Fonts, nothing to do
 
-The Pocket Project brand asks for Georgia and Open Sans. Georgia is websafe and needs no file. Open Sans has to be fetched once:
+The Pocket Project brand asks for Georgia and Open Sans. Georgia is websafe and needs no file. Open Sans is already in the folder: nine woff2 files, 282 KB, weights 400, 600 and 700, including the Cyrillic range because eighteen groups are published in Ukrainian.
 
-```
-cd app
-python3 vendor/vendor_open_sans.py
-```
+Upload `app/vendor/fonts/` along with everything else and the typeface is correct. Nothing to fetch and nothing to run.
 
-About 220 KB, three weights, including the Cyrillic range because eighteen groups are published in Ukrainian. It writes into `vendor/` and the page already links it.
-
-If you skip this the map still works and simply falls back to the system sans, so it is not a blocker, only a small loss of polish.
+`vendor/vendor_open_sans.py` is in the folder too. It is what produced those files, kept so they can be regenerated if a weight is ever needed, and it is not part of deploying.
 
 ## Checking it worked
 
