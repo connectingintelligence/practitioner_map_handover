@@ -26,7 +26,7 @@ const $ = (s) => document.querySelector(s);
 // on 27 August were spent on a browser quietly running an old copy of this file
 // against new markup. If the stamp on screen is not the one below, the page is
 // stale and nothing else you are looking at can be trusted.
-const BUILD = '2026-08-31g · Open Sans bundled';
+const BUILD = '2026-09-10a · wrong-tab guard';
 
 // ── read the embed parameters ──
 // ?layer= opens showing one network, ?country= narrows and zooms to one

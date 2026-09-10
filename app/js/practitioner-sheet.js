@@ -69,6 +69,31 @@ export function csvToGroups(text) {
     if (idx[required] === -1) throw new Error(`the CSV has no "${required}" column`);
   }
 
+  // ── is this actually the reviewed tab? ──
+  //
+  // Google's gviz endpoint cannot be made to guarantee which tab it returns.
+  // Tested 10 September against the live document: a `sheet=` name that does
+  // not exist, and a `gid=` that does not exist, both return HTTP 200 with the
+  // contents of the FIRST tab. There is no error and no way to tell from the
+  // response that you were given something other than what you asked for.
+  //
+  // That was harmless while the document had one tab. It stops being harmless
+  // the moment the daily WordPress sync adds its own: `sync` is the raw mirror,
+  // it carries id, network and name exactly like this tab does, and every check
+  // above would pass. The map would then quietly publish unreviewed data,
+  // including rows the team has deliberately hidden with `visible = FALSE`.
+  //
+  // `scope` and `location` are the reviewed tab's signature. They hold human
+  // judgments, they exist only on map_data, and COLUMN_SPEC tells the
+  // automation never to write them. If they are absent, this is not the tab we
+  // asked for, and the bundled snapshot is the safer answer.
+  if (idx.scope === -1 && idx.location === -1) {
+    throw new Error('this looks like the wrong tab: no "scope" or "location" column, '
+      + 'which only the reviewed map_data tab has. Google returns the first tab '
+      + 'without complaint when the requested one is missing, so check that '
+      + 'map_data exists and is the leftmost tab');
+  }
+
   const groups = [];
   for (let r = 1; r < rows.length; r++) {
     const raw = rows[r];
