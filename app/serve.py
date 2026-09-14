@@ -31,7 +31,16 @@ from functools import partial
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PAGE = "practitioner.html"
+
+# Which page to open. The practitioner map by default, because that is what is
+# worked on daily, but the folder also holds the full Atlas at index.html and
+# there is no reason for it to be stuck on a caching server.
+#
+#     python3 serve.py                     the practitioner map
+#     python3 serve.py index.html          the full Atlas
+#     python3 serve.py index.html 8010     ... on another port
+DEFAULT_PAGE = "practitioner.html"
+PAGE = DEFAULT_PAGE
 
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
@@ -60,7 +69,26 @@ def current_build():
 
 
 def main():
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+    # Arguments in either order, so `serve.py 8010` and `serve.py index.html`
+    # both do the obvious thing and neither needs remembering.
+    global PAGE
+    port = 8000
+    for arg in sys.argv[1:]:
+        if arg.isdigit():
+            port = int(arg)
+        elif arg.endswith(".html"):
+            PAGE = arg
+        else:
+            print(f"Not a page or a port: {arg!r}")
+            print("Usage: serve.py [page.html] [port]")
+            return 2
+
+    if not (HERE / PAGE).exists():
+        pages = sorted(p.name for p in HERE.glob("*.html"))
+        print(f"No such page: {PAGE}")
+        print("This folder has: " + ", ".join(pages))
+        return 2
+
     handler = partial(NoCacheHandler, directory=str(HERE))
 
     # Deliberately does NOT wander to the next free port. An earlier version
@@ -71,16 +99,18 @@ def main():
         socketserver.TCPServer.allow_reuse_address = True
         with socketserver.TCPServer(("127.0.0.1", port), handler) as httpd:
                 url = f"http://localhost:{port}/{PAGE}"
-                print(f"Practitioner map: {url}")
+                practitioner = PAGE == DEFAULT_PAGE
+                print(f"{'Practitioner map' if practitioner else 'CFCT Atlas'}: {url}")
                 print()
-                print(f"  all networks      {url}")
-                print(f"  practice groups   {url}?layer=practice_groups")
-                print(f"  Ukraine only      {url}?country=ua")
-                print(f"  German            {url}?lang=de")
-                print()
-                print(f"Build on disk: {current_build()}")
-                print("The page prints its own build to the browser console.")
-                print("If the two differ, the browser is showing you cached files.")
+                if practitioner:
+                    print(f"  all networks      {url}")
+                    print(f"  practice groups   {url}?layer=practice_groups")
+                    print(f"  Ukraine only      {url}?country=ua")
+                    print(f"  German            {url}?lang=de")
+                    print()
+                    print(f"Build on disk: {current_build()}")
+                    print("The page prints its own build to the browser console.")
+                    print("If the two differ, the browser is showing you cached files.")
                 print("Safari holds ES modules hard: Develop menu, Empty Caches,")
                 print("or just use a private window.")
                 print()

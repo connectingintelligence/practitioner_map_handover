@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Practitioner Map, heading typeface options</title>
+
+<!-- NOTE: this page loads fonts from Google's CDN. That is deliberate and it is
+     why this file is NOT part of the deliverable. The map itself vendors every
+     font locally and reaches no external server, which is a hard rule for the
+     build. This is a specimen sheet for a decision, nothing more. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;600&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#f1ebe1; --bg-2:#e8dfd0; --ink:#1a1612; --ink-dim:#555049; --ink-faint:#8a8278;
+    --rule:#cfc4b2; --accent:#b0522a;
+    --pg:#E8772C; --rc:#3F9991; --il:#7a3b5d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Open Sans',system-ui,sans-serif;
+       font-size:14px;line-height:1.55;padding:40px 32px 80px}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-family:Georgia,serif;font-weight:400;font-size:26px;margin-bottom:6px}
+  .sub{color:var(--ink-faint);font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:28px}
+  .intro{max-width:64ch;color:var(--ink-dim);margin-bottom:36px}
+  .intro p{margin-bottom:10px}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-items:start}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+  .col{background:rgba(241,235,225,.86);border:1px solid rgba(26,22,18,.10);border-radius:4px;padding:20px}
+  .col > h2{font-family:'Open Sans',sans-serif;font-size:10px;letter-spacing:.16em;
+            text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-bottom:4px}
+  .verdict{font-size:12px;line-height:1.5;color:var(--ink-dim);
+           padding:9px 11px;border-radius:3px;margin:10px 0 18px;background:rgba(26,22,18,.035)}
+  .verdict.bad{background:rgba(176,82,42,.10);color:#7a2d16}
+  .verdict.ok{background:rgba(63,153,145,.12);color:#25605b}
+
+  .card{border-top:1px solid var(--rule);padding:14px 0 4px}
+  .eyebrow{display:flex;align-items:center;gap:7px;font-size:9.5px;letter-spacing:.16em;
+           text-transform:uppercase;color:var(--ink-faint);margin-bottom:7px}
+  .sw{width:8px;height:8px;border-radius:50%}
+  .place{font-size:11.5px;color:var(--ink-faint);margin-top:5px}
+  .lbl{font-size:10px;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;margin-top:9px}
+
+  /* The three candidates. Titles carry the real map sizes: 18px in the popup,
+     15px in the overlay table. */
+  .t{font-weight:400;line-height:1.25;color:var(--ink)}
+
+  .a .t{font-family:Georgia,'Times New Roman',serif;font-size:18px}
+  .b .t{font-family:'Bebas Neue','Oswald',sans-serif;font-size:23px;letter-spacing:.01em}
+  .c .t{font-family:'Open Sans',sans-serif;font-size:17px;font-weight:600;letter-spacing:-.005em}
+
+  .statrail{display:flex;gap:22px;margin-top:22px;padding-top:14px;border-top:1px solid var(--rule)}
+  .statrail .v{line-height:1}
+  .a .statrail .v{font-family:Georgia,serif;font-size:22px}
+  .b .statrail .v{font-family:'Bebas Neue',sans-serif;font-size:27px}
+  .c .statrail .v{font-family:'Open Sans',sans-serif;font-size:21px;font-weight:700}
+  .statrail .l{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-top:5px}
+
+  .note{margin-top:40px;padding-top:20px;border-top:1px solid var(--rule);
+        max-width:72ch;color:var(--ink-dim);font-size:13px}
+  .note h3{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);
+           font-weight:600;margin-bottom:8px}
+  .note p{margin-bottom:9px}
+  code{background:rgba(26,22,18,.05);padding:1px 4px;border-radius:2px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Heading typeface, three options</h1>
+  <div class="sub">Practitioner Network Map &middot; The Pocket Project &middot; 14 September 2026</div>
+
+  <div class="intro">
+    <p>Every title below is a real group name taken from the live data, shown at the size the map actually uses. The last two in each column are Ukrainian, which is where the options separate.</p>
+    <p>Eighteen of the 149 groups publish in Ukrainian, and one in Spanish with accents. The longest name in the data is 102 characters.</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- A -->
+    <div class="col a">
+      <h2>A &middot; Georgia, today</h2>
+      <div class="verdict ok">Covers every script in the data. This is what is deployed.</div>
+
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--il)"></span>Integration Labs</div>
+        <div class="t">Witch Hunts</div>
+        <div class="place">No fixed place</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--pg)"></span>Practice Groups</div>
+        <div class="t">Praxisgruppe Hannover</div>
+        <div class="place">Meets in Hannover, Germany</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--pg)"></span>Practice Groups</div>
+        <div class="t">Grupo de Práctica en Español</div>
+        <div class="place">Online</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--il)"></span>Integration Labs</div>
+        <div class="t">Victim – Perpetrator Dynamics Through the Individual, Generational &amp; Collective Lens</div>
+        <div class="place">No fixed place &middot; 83 characters</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--rc)"></span>Resilience Circles</div>
+        <div class="t">Точки опори</div>
+        <div class="place">Hosted from Zhytomyr, Ukraine</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--rc)"></span>Resilience Circles</div>
+        <div class="t">Специфіка роботи з молоддю із сільської місцевості. Стереотипи, психо-емоційна підтримка та менторство</div>
+        <div class="place">Hosted from Zhytomyr, Ukraine &middot; 102 characters</div>
+      </div>
+
+      <div class="statrail">
+        <div><div class="v">149</div><div class="l">Groups</div></div>
+        <div><div class="v">89</div><div class="l">On the map</div></div>
+        <div><div class="v">93</div><div class="l">Countries</div></div>
+      </div>
+    </div>
+
+    <!-- B -->
+    <div class="col b">
+      <h2>B &middot; Bebas Neue, Oswald for Cyrillic</h2>
+      <div class="verdict bad">The two Ukrainian names below are Oswald, not Bebas Neue. Bebas has no Cyrillic at all. Compare their weight and width against the Latin names above them.</div>
+
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--il)"></span>Integration Labs</div>
+        <div class="t">Witch Hunts</div>
+        <div class="place">No fixed place</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--pg)"></span>Practice Groups</div>
+        <div class="t">Praxisgruppe Hannover</div>
+        <div class="place">Meets in Hannover, Germany</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--pg)"></span>Practice Groups</div>
+        <div class="t">Grupo de Práctica en Español</div>
+        <div class="place">Online</div>
+        <div class="lbl">Note the accents</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--il)"></span>Integration Labs</div>
+        <div class="t">Victim – Perpetrator Dynamics Through the Individual, Generational &amp; Collective Lens</div>
+        <div class="place">No fixed place &middot; 83 characters</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--rc)"></span>Resilience Circles</div>
+        <div class="t">Точки опори</div>
+        <div class="place">Hosted from Zhytomyr, Ukraine</div>
+        <div class="lbl">Falls back to Oswald</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--rc)"></span>Resilience Circles</div>
+        <div class="t">Специфіка роботи з молоддю із сільської місцевості. Стереотипи, психо-емоційна підтримка та менторство</div>
+        <div class="place">Hosted from Zhytomyr, Ukraine &middot; 102 characters</div>
+        <div class="lbl">Falls back to Oswald</div>
+      </div>
+
+      <div class="statrail">
+        <div><div class="v">149</div><div class="l">Groups</div></div>
+        <div><div class="v">89</div><div class="l">On the map</div></div>
+        <div><div class="v">93</div><div class="l">Countries</div></div>
+      </div>
+    </div>
+
+    <!-- C -->
+    <div class="col c">
+      <h2>C &middot; Open Sans, larger and semibold</h2>
+      <div class="verdict ok">One typeface throughout, every script covered, nothing to vendor. Noah's alternative.</div>
+
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--il)"></span>Integration Labs</div>
+        <div class="t">Witch Hunts</div>
+        <div class="place">No fixed place</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--pg)"></span>Practice Groups</div>
+        <div class="t">Praxisgruppe Hannover</div>
+        <div class="place">Meets in Hannover, Germany</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--pg)"></span>Practice Groups</div>
+        <div class="t">Grupo de Práctica en Español</div>
+        <div class="place">Online</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--il)"></span>Integration Labs</div>
+        <div class="t">Victim – Perpetrator Dynamics Through the Individual, Generational &amp; Collective Lens</div>
+        <div class="place">No fixed place &middot; 83 characters</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--rc)"></span>Resilience Circles</div>
+        <div class="t">Точки опори</div>
+        <div class="place">Hosted from Zhytomyr, Ukraine</div>
+      </div>
+      <div class="card">
+        <div class="eyebrow"><span class="sw" style="background:var(--rc)"></span>Resilience Circles</div>
+        <div class="t">Специфіка роботи з молоддю із сільської місцевості. Стереотипи, психо-емоційна підтримка та менторство</div>
+        <div class="place">Hosted from Zhytomyr, Ukraine &middot; 102 characters</div>
+      </div>
+
+      <div class="statrail">
+        <div><div class="v">149</div><div class="l">Groups</div></div>
+        <div><div class="v">89</div><div class="l">On the map</div></div>
+        <div><div class="v">93</div><div class="l">Countries</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="note">
+    <h3>What the mixing actually costs</h3>
+    <p>Option B is not Bebas Neue. It is Bebas Neue for 131 groups and Oswald for 18, and a reader has no way to know why. Oswald is the closest widely available match, and it is still a different design: different stroke weight, different width, a lowercase where Bebas has none. Set beside each other in one list, the Ukrainian circles will read as a different class of thing.</p>
+    <p>That is the part worth weighing. Eighteen of these groups are run by Ukrainian facilitators during a war. The map already leaves their names and descriptions untranslated, deliberately, so they appear in their own words. Having them also appear in a visibly different typeface is a small thing, and it points the wrong way.</p>
+
+    <h3>Where Bebas Neue does work</h3>
+    <p>The map's own furniture is all Latin and all short: the title, the three counters, the section headings. Bebas Neue there is straightforward, follows the brand, and never meets a Cyrillic character. That is option B applied only to the chrome, with group names in Open Sans, and it is the version I would suggest if the brand change is firm.</p>
+
+    <h3>On the 102 character name</h3>
+    <p>Noah is right that this is the other problem. Bebas Neue has no lowercase, so that name is set in all caps whatever we do. In the map's card it runs to four lines and is genuinely hard to read. Option C keeps sentence case and stays legible at every length.</p>
+  </div>
+
+</div>
+</body>
+</html>
